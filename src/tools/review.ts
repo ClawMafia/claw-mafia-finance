@@ -1,4 +1,4 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/claw-mafia-finance";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
 
 export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) {
@@ -9,13 +9,13 @@ export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) 
 			description:
 				"Generate daily review report with PnL attribution, position changes, " +
 				"and thesis alignment for all active strategies.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					date: { type: "string", description: "Report date (YYYY-MM-DD). Default: today." },
 				},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 4
 				return { status: "not_implemented", message: "Daily reports are Phase 4." };
 			},
@@ -28,14 +28,14 @@ export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) 
 		{
 			name: "compare_thesis_vs_actual",
 			description: "Compare the original strategy thesis/assumptions against realized outcomes.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					strategy_id: { type: "string", description: "Strategy to review" },
 				},
 				required: ["strategy_id"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 4
 				return { status: "not_implemented" };
 			},
@@ -48,14 +48,14 @@ export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) 
 		{
 			name: "write_journal_entry",
 			description: "Write a structured review/journal entry to the persistent journal store.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					entry: { type: "string", description: "JSON string of the journal entry" },
 				},
 				required: ["entry"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 4
 				return { status: "not_implemented" };
 			},
@@ -68,7 +68,7 @@ export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) 
 		{
 			name: "get_journal_entries",
 			description: "Query past journal entries by date range or strategy.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					start_date: { type: "string" },
@@ -76,7 +76,7 @@ export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) 
 					strategy_id: { type: "string" },
 				},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 4
 				return { status: "not_implemented", entries: [] };
 			},

@@ -1,4 +1,4 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/claw-mafia-finance";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import { registerMarketDataTools } from "./tools/market-data.js";
 import { registerOptionsPricingTools } from "./tools/options-pricing.js";
 import { registerStrategyTools } from "./tools/strategy.js";

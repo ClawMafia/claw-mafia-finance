@@ -13,9 +13,10 @@
     "typecheck": "tsc --noEmit",
     "setup-python": "python3 -m venv engine/.venv && engine/.venv/bin/pip install -r engine/requirements.txt"
   },
-  "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.9.0",
-    "@sinclair/typebox": "^0.34.0"
+    "@sinclair/typebox": "^0.34.0",
+    "@types/node": "^25.5.0",
+    "openclaw": "file:../openclaw",
+    "typescript": "^5.9.0"
   }
 }

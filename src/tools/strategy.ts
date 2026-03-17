@@ -1,4 +1,4 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/claw-mafia-finance";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -15,7 +15,7 @@ export function registerStrategyTools(api: OpenClawPluginApi, ctx: PluginContext
 				"Look up strategy templates from the built-in library. " +
 				"Returns available templates or a specific template's full specification. " +
 				"Templates include: covered-call, collar, put-write, calendar-spread.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					template_id: {
@@ -25,7 +25,7 @@ export function registerStrategyTools(api: OpenClawPluginApi, ctx: PluginContext
 					},
 				},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				const templateId = params.template_id as string | undefined;
 
 				if (!templateId) {
@@ -54,7 +54,7 @@ export function registerStrategyTools(api: OpenClawPluginApi, ctx: PluginContext
 			description:
 				"Validate a strategy specification JSON against the required schema. " +
 				"Checks that all required fields are present and types are correct.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					spec: {
@@ -64,7 +64,7 @@ export function registerStrategyTools(api: OpenClawPluginApi, ctx: PluginContext
 				},
 				required: ["spec"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				try {
 					const spec = JSON.parse(params.spec as string);
 					const errors: string[] = [];

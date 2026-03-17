@@ -1,4 +1,4 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/claw-mafia-finance";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
 
 export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginContext) {
@@ -9,7 +9,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 			description:
 				"Submit a paper trading order. Only for approved strategies. " +
 				"Supports stock and options orders with market or limit type.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					symbol: { type: "string", description: "Ticker or OCC option symbol" },
@@ -22,7 +22,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 				},
 				required: ["symbol", "asset_type", "side", "quantity", "order_type", "strategy_id"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
 				return { status: "not_implemented", message: "Paper trading is Phase 3." };
 			},
@@ -35,14 +35,14 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 		{
 			name: "paper_cancel_order",
 			description: "Cancel a pending paper trading order.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					order_id: { type: "string", description: "Order ID to cancel" },
 				},
 				required: ["order_id"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
 				return { status: "not_implemented" };
 			},
@@ -55,13 +55,13 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 		{
 			name: "paper_get_positions",
 			description: "Get current paper trading positions, optionally filtered by strategy.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					strategy_id: { type: "string", description: "Filter by strategy ID. Omit for all." },
 				},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
 				return { status: "not_implemented", positions: [] };
 			},
@@ -74,14 +74,14 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 		{
 			name: "paper_get_pnl",
 			description: "Get paper trading PnL (realized + unrealized), optionally by strategy and period.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					strategy_id: { type: "string", description: "Filter by strategy ID" },
 					period: { type: "string", description: "'today', 'mtd', 'ytd', 'inception'. Default: 'today'." },
 				},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
 				return { status: "not_implemented" };
 			},
@@ -94,7 +94,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 		{
 			name: "paper_roll_position",
 			description: "Roll an expiring options position to a new expiration (and optionally new strike).",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					position_id: { type: "string", description: "Position to roll" },
@@ -103,7 +103,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 				},
 				required: ["position_id", "new_expiry"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
 				return { status: "not_implemented" };
 			},
@@ -116,7 +116,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 		{
 			name: "paper_get_order_history",
 			description: "Get paper trading order history log.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					strategy_id: { type: "string", description: "Filter by strategy ID" },
@@ -124,7 +124,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 					end_date: { type: "string", description: "End date (YYYY-MM-DD)" },
 				},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
 				return { status: "not_implemented", orders: [] };
 			},

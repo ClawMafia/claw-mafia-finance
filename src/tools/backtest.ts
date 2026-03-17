@@ -1,4 +1,4 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/claw-mafia-finance";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
 import { runPythonEngine } from "../engine-runner.js";
 
@@ -10,7 +10,7 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 			description:
 				"Run a historical backtest for a strategy specification. " +
 				"Executes asynchronously via Python engine. Returns a job_id to check results.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					strategy_spec: { type: "string", description: "JSON string of the strategy specification" },
@@ -25,7 +25,7 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 				},
 				required: ["strategy_spec", "start_date"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 2: implement via Python subprocess
 				return {
 					status: "not_implemented",
@@ -42,14 +42,14 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 		{
 			name: "get_backtest_status",
 			description: "Check the status of a running backtest job.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					job_id: { type: "string", description: "Backtest job ID returned by run_backtest" },
 				},
 				required: ["job_id"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 2
 				return { status: "not_implemented", job_id: params.job_id };
 			},
@@ -64,14 +64,14 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 			description:
 				"Fetch the full results of a completed backtest including metrics, " +
 				"regime breakdown, stress results, and trade log.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					job_id: { type: "string", description: "Backtest job ID" },
 				},
 				required: ["job_id"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 2
 				return { status: "not_implemented", job_id: params.job_id };
 			},
@@ -86,7 +86,7 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 			description:
 				"Run multiple backtest parameter combinations to find robust configurations. " +
 				"Varies specified parameters across a grid and returns comparative results.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					strategy_spec: { type: "string", description: "Base strategy specification JSON" },
@@ -99,7 +99,7 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 				},
 				required: ["strategy_spec", "param_grid", "start_date"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 2
 				return { status: "not_implemented", message: "Parameter sweep is Phase 2." };
 			},
@@ -112,7 +112,7 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 		{
 			name: "compare_backtests",
 			description: "Compare results of multiple backtests side by side.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					job_ids: {
@@ -123,7 +123,7 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 				},
 				required: ["job_ids"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 2
 				return { status: "not_implemented", job_ids: params.job_ids };
 			},

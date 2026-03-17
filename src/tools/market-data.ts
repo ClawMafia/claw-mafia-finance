@@ -1,4 +1,4 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/claw-mafia-finance";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
 import { PolygonClient } from "../data/polygon-client.js";
 import { FredClient } from "../data/fred-client.js";
@@ -14,14 +14,14 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			description:
 				"Get current stock quote including price, volume, change, and basic stats. " +
 				"Use this for quick price checks on individual symbols.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					symbol: { type: "string", description: "Ticker symbol (e.g. SPY, AAPL, QQQ)" },
 				},
 				required: ["symbol"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				const symbol = (params.symbol as string).toUpperCase();
 				return polygon.getQuote(symbol);
 			},
@@ -36,7 +36,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			description:
 				"Fetch options chain for a symbol. Returns strikes, expiries, IV, greeks, OI. " +
 				"Optionally filter by expiration date or strike range around ATM.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					symbol: { type: "string", description: "Underlying ticker symbol" },
@@ -53,7 +53,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 				},
 				required: ["symbol"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				const symbol = (params.symbol as string).toUpperCase();
 				return polygon.getOptionsChain(symbol, {
 					expiration: params.expiration as string | undefined,
@@ -72,7 +72,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			description:
 				"Fetch historical OHLCV (open, high, low, close, volume) bars for a symbol. " +
 				"Data is cached locally after first fetch. Default interval is daily.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					symbol: { type: "string", description: "Ticker symbol" },
@@ -86,7 +86,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 				},
 				required: ["symbol", "start_date"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				const symbol = (params.symbol as string).toUpperCase();
 				return polygon.getHistoricalOHLCV(symbol, {
 					startDate: params.start_date as string,
@@ -105,14 +105,14 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			description:
 				"Get implied volatility surface for a symbol — IV by strike and expiration. " +
 				"Useful for analyzing term structure and skew.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					symbol: { type: "string", description: "Underlying ticker symbol" },
 				},
 				required: ["symbol"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				const symbol = (params.symbol as string).toUpperCase();
 				return polygon.getIVSurface(symbol);
 			},
@@ -127,7 +127,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			description:
 				"Get upcoming earnings dates for specified symbols or the market. " +
 				"Important for options strategies around earnings events.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					symbols: {
@@ -138,7 +138,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 					days_ahead: { type: "number", description: "How many days ahead to look. Default: 14." },
 				},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				const symbols = params.symbols as string[] | undefined;
 				const daysAhead = (params.days_ahead as number) ?? 14;
 				return polygon.getEarningsCalendar(symbols, daysAhead);
@@ -154,7 +154,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			description:
 				"Get current US Treasury risk-free rates from FRED. " +
 				"Used for options pricing (Black-Scholes) and discount rates.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					tenor: {
@@ -164,7 +164,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 					},
 				},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				if (!fred) {
 					return { error: "FRED API key not configured. Set fredApiKey in plugin config." };
 				}
@@ -182,7 +182,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			description:
 				"Get dividend history for a symbol including ex-dates, payment dates, and amounts. " +
 				"Important for covered call and collar strategy modeling.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					symbol: { type: "string", description: "Ticker symbol" },
@@ -190,7 +190,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 				},
 				required: ["symbol"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				const symbol = (params.symbol as string).toUpperCase();
 				const years = (params.years as number) ?? 3;
 				return polygon.getDividendHistory(symbol, years);
@@ -206,13 +206,13 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			description:
 				"Get upcoming economic events (FOMC, CPI, NFP, etc.). " +
 				"Useful for timing volatility strategies around macro events.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					days_ahead: { type: "number", description: "Days ahead to look. Default: 14." },
 				},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				if (!fred) {
 					return { error: "FRED API key not configured." };
 				}

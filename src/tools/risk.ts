@@ -1,4 +1,4 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/claw-mafia-finance";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
 
 export function registerRiskTools(api: OpenClawPluginApi, ctx: PluginContext) {
@@ -7,14 +7,14 @@ export function registerRiskTools(api: OpenClawPluginApi, ctx: PluginContext) {
 		{
 			name: "calculate_portfolio_var",
 			description: "Calculate portfolio Value at Risk using parametric and historical methods.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					confidence: { type: "number", description: "Confidence level (e.g. 0.95). Default: 0.95." },
 					horizon_days: { type: "number", description: "Time horizon in days. Default: 1." },
 				},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
 				return { status: "not_implemented", message: "VaR calculation is Phase 3." };
 			},
@@ -27,13 +27,13 @@ export function registerRiskTools(api: OpenClawPluginApi, ctx: PluginContext) {
 		{
 			name: "check_position_limits",
 			description: "Validate current positions against configured risk limits.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					strategy_id: { type: "string", description: "Check limits for specific strategy. Omit for portfolio-wide." },
 				},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
 				return { status: "not_implemented" };
 			},
@@ -48,7 +48,7 @@ export function registerRiskTools(api: OpenClawPluginApi, ctx: PluginContext) {
 			description:
 				"Run stress test scenario on current portfolio. " +
 				"Supports named scenarios (covid_crash, rate_hike_100bps) or custom shocks.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					scenario_name: {
@@ -61,7 +61,7 @@ export function registerRiskTools(api: OpenClawPluginApi, ctx: PluginContext) {
 					},
 				},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
 				return { status: "not_implemented" };
 			},
@@ -74,14 +74,14 @@ export function registerRiskTools(api: OpenClawPluginApi, ctx: PluginContext) {
 		{
 			name: "correlation_matrix",
 			description: "Calculate return correlation matrix for a set of symbols.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					symbols: { type: "array", items: { type: "string" }, description: "Symbols to analyze" },
 					lookback_days: { type: "number", description: "Lookback period in trading days. Default: 60." },
 				},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
 				return { status: "not_implemented" };
 			},
@@ -94,11 +94,11 @@ export function registerRiskTools(api: OpenClawPluginApi, ctx: PluginContext) {
 		{
 			name: "exposure_report",
 			description: "Generate portfolio exposure report: delta, gamma, vega, theta by underlying.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {},
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
 				return { status: "not_implemented" };
 			},

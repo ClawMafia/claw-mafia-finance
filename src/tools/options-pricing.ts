@@ -1,4 +1,4 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/claw-mafia-finance";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
 import { runPythonEngine } from "../engine-runner.js";
 
@@ -10,7 +10,7 @@ export function registerOptionsPricingTools(api: OpenClawPluginApi, ctx: PluginC
 			description:
 				"Price a single option using Black-Scholes model. Returns theoretical price " +
 				"and all greeks (delta, gamma, theta, vega, rho).",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					spot: { type: "number", description: "Current underlying price (S)" },
@@ -26,7 +26,7 @@ export function registerOptionsPricingTools(api: OpenClawPluginApi, ctx: PluginC
 				},
 				required: ["spot", "strike", "dte", "risk_free_rate", "iv", "option_type"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				return runPythonEngine("options_pricer", "black_scholes", params, ctx);
 			},
 		},
@@ -40,7 +40,7 @@ export function registerOptionsPricingTools(api: OpenClawPluginApi, ctx: PluginC
 			description:
 				"Calculate payoff diagram for a multi-leg options structure at expiration. " +
 				"Supports any combination of calls, puts, and stock positions.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					legs: {
@@ -66,7 +66,7 @@ export function registerOptionsPricingTools(api: OpenClawPluginApi, ctx: PluginC
 				},
 				required: ["legs", "underlying_price"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				return runPythonEngine("options_pricer", "payoff", params, ctx);
 			},
 		},
@@ -80,7 +80,7 @@ export function registerOptionsPricingTools(api: OpenClawPluginApi, ctx: PluginC
 			description:
 				"Calculate portfolio-level aggregated greeks for a set of positions. " +
 				"Returns net delta, gamma, theta, vega per underlying and total.",
-			input_schema: {
+			parameters: {
 				type: "object",
 				properties: {
 					positions: {
@@ -104,7 +104,7 @@ export function registerOptionsPricingTools(api: OpenClawPluginApi, ctx: PluginC
 				},
 				required: ["positions"],
 			},
-			async call(params: Record<string, unknown>) {
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				return runPythonEngine("options_pricer", "portfolio_greeks", params, ctx);
 			},
 		},
