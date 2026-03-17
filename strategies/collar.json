@@ -1,0 +1,59 @@
+{
+  "template_id": "collar",
+  "name": "Collar (Protective Collar)",
+  "description": "Hold underlying, buy OTM put for downside protection, sell OTM call to finance the put. Limits both upside and downside.",
+  "structure": "collar",
+  "legs": [
+    {
+      "type": "stock",
+      "side": "buy",
+      "quantity": 100,
+      "description": "Long 100 shares of underlying"
+    },
+    {
+      "type": "put",
+      "side": "buy",
+      "delta_target": 0.15,
+      "dte_target": 30,
+      "quantity": 1,
+      "description": "Long 1 OTM put ~15 delta for downside protection"
+    },
+    {
+      "type": "call",
+      "side": "sell",
+      "delta_target": 0.20,
+      "dte_target": 30,
+      "quantity": 1,
+      "description": "Short 1 OTM call ~20 delta to finance the put"
+    }
+  ],
+  "entry_rules": [
+    "Hold or buy 100 shares of underlying",
+    "Buy protective put at target delta",
+    "Sell call at target delta to offset put cost",
+    "Aim for zero-cost or small net debit"
+  ],
+  "exit_rules": [
+    "Close entire structure at expiration",
+    "If put goes deep ITM, consider exercising for capital preservation",
+    "Accept call assignment if stock moves above call strike"
+  ],
+  "roll_rules": [
+    "Roll both options together to maintain collar structure",
+    "Adjust strikes based on new price level after roll",
+    "Avoid rolling into earnings"
+  ],
+  "objective": "Protect against downside while maintaining equity exposure with capped upside",
+  "risk_profile": {
+    "max_profit": "Call strike - stock price - net debit",
+    "max_loss": "Stock price - put strike + net debit",
+    "breakeven": "Stock price + net debit (or - net credit)"
+  },
+  "best_environment": "Uncertain market, elevated vol (cheaper collar via higher call premium), position protection needed",
+  "default_parameters": {
+    "put_delta_target": 0.15,
+    "call_delta_target": 0.20,
+    "dte_target": 30,
+    "max_net_debit_pct": 0.5
+  }
+}

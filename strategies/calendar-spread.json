@@ -1,0 +1,55 @@
+{
+  "template_id": "calendar-spread",
+  "name": "Calendar Spread (Time Spread)",
+  "description": "Buy a longer-dated option and sell a shorter-dated option at the same strike. Profits from time decay differential and IV term structure.",
+  "structure": "calendar_spread",
+  "legs": [
+    {
+      "type": "call",
+      "side": "sell",
+      "strike_offset_pct": 0,
+      "dte_target": 14,
+      "quantity": 1,
+      "description": "Short 1 near-term ATM call ~14 DTE"
+    },
+    {
+      "type": "call",
+      "side": "buy",
+      "strike_offset_pct": 0,
+      "dte_target": 45,
+      "quantity": 1,
+      "description": "Long 1 longer-term ATM call ~45 DTE"
+    }
+  ],
+  "entry_rules": [
+    "Enter when IV term structure is in contango (front IV < back IV is normal; look for steeper than usual)",
+    "Place at ATM or slightly OTM strike",
+    "Prefer when front-month IV rank is elevated",
+    "Max debit should not exceed 30% of strike width potential"
+  ],
+  "exit_rules": [
+    "Close when front option expires or near expiration",
+    "Target 25-50% return on debit paid",
+    "Close if underlying moves beyond breakeven range",
+    "Close if IV term structure inverts significantly"
+  ],
+  "roll_rules": [
+    "After front expiry, sell new front-month against back-month",
+    "Adjust strike if underlying has moved significantly",
+    "Do not roll if back-month has less than 14 DTE remaining"
+  ],
+  "objective": "Profit from faster time decay of short-dated option relative to longer-dated option",
+  "risk_profile": {
+    "max_profit": "Occurs when underlying is at strike at front expiration",
+    "max_loss": "Limited to net debit paid",
+    "breakeven": "Depends on IV; approximately strike +/- debit paid"
+  },
+  "best_environment": "Range-bound market, contango term structure, upcoming event in front month increases front IV",
+  "default_parameters": {
+    "front_dte": 14,
+    "back_dte": 45,
+    "strike_offset_pct": 0,
+    "profit_target_pct": 30,
+    "max_loss_pct": 75
+  }
+}

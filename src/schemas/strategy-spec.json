@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StrategySpec",
+  "description": "Specification for a structured equity/options strategy",
+  "type": "object",
+  "required": ["strategy_id", "universe", "structure", "entry_rules", "exit_rules", "objective"],
+  "properties": {
+    "strategy_id": {
+      "type": "string",
+      "description": "Unique identifier for this strategy",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "universe": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "List of ticker symbols this strategy applies to"
+    },
+    "structure": {
+      "type": "string",
+      "enum": ["covered_call", "collar", "put_write", "calendar_spread", "diagonal_spread", "protective_put", "straddle", "strangle", "iron_condor", "custom"],
+      "description": "Strategy structure type"
+    },
+    "legs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["call", "put", "stock"] },
+          "side": { "type": "string", "enum": ["buy", "sell"] },
+          "delta_target": { "type": "number", "minimum": 0, "maximum": 1 },
+          "strike_offset_pct": { "type": "number" },
+          "dte_target": { "type": "integer", "minimum": 0 },
+          "quantity": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["type", "side", "quantity"]
+      }
+    },
+    "entry_rules": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "exit_rules": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "roll_rules": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "objective": {
+      "type": "string",
+      "description": "What this strategy aims to achieve"
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    }
+  }
+}

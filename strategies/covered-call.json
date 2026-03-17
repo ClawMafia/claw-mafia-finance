@@ -1,0 +1,50 @@
+{
+  "template_id": "covered-call",
+  "name": "Covered Call",
+  "description": "Hold underlying stock and sell OTM call options to generate income. Caps upside but provides premium income and slight downside cushion.",
+  "structure": "covered_call",
+  "legs": [
+    {
+      "type": "stock",
+      "side": "buy",
+      "quantity": 100,
+      "description": "Long 100 shares of underlying"
+    },
+    {
+      "type": "call",
+      "side": "sell",
+      "delta_target": 0.25,
+      "dte_target": 30,
+      "quantity": 1,
+      "description": "Short 1 OTM call ~25 delta, ~30 DTE"
+    }
+  ],
+  "entry_rules": [
+    "Hold or buy 100 shares of underlying",
+    "Sell 1 OTM call at target delta and DTE",
+    "Prefer IV rank > 30 for entry"
+  ],
+  "exit_rules": [
+    "Let call expire worthless if OTM at expiry",
+    "Buy back call if premium decays to 80% of entry credit",
+    "Accept assignment if ITM at expiry (stock called away)"
+  ],
+  "roll_rules": [
+    "If call is ITM with > 5 DTE, consider rolling up and out",
+    "Roll to next monthly if current call expires worthless",
+    "Do not roll into earnings week"
+  ],
+  "objective": "Generate income from premium selling while holding long equity exposure",
+  "risk_profile": {
+    "max_profit": "Premium received + (strike - entry) if assigned",
+    "max_loss": "Unlimited downside on underlying minus premium received",
+    "breakeven": "Stock purchase price - premium received"
+  },
+  "best_environment": "Neutral to mildly bullish, elevated IV, no major catalysts",
+  "default_parameters": {
+    "delta_target": 0.25,
+    "dte_target": 30,
+    "roll_trigger_delta": 0.50,
+    "profit_target_pct": 80
+  }
+}

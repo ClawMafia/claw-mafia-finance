@@ -1,0 +1,46 @@
+{
+  "template_id": "put-write",
+  "name": "Cash-Secured Put Write",
+  "description": "Sell OTM puts secured by cash. Collect premium with obligation to buy stock at strike. Systematic entry strategy with income generation.",
+  "structure": "put_write",
+  "legs": [
+    {
+      "type": "put",
+      "side": "sell",
+      "delta_target": 0.20,
+      "dte_target": 30,
+      "quantity": 1,
+      "description": "Short 1 OTM put ~20 delta, ~30 DTE"
+    }
+  ],
+  "entry_rules": [
+    "Sell 1 OTM put at target delta and DTE",
+    "Maintain cash reserve equal to strike * 100 per contract",
+    "Prefer IV rank > 25 for entry",
+    "Avoid selling into earnings if not willing to own stock through event"
+  ],
+  "exit_rules": [
+    "Let put expire worthless if OTM at expiry",
+    "Buy back if premium decays to 80% of entry credit",
+    "Accept assignment if ITM — transition to covered call"
+  ],
+  "roll_rules": [
+    "If put is ITM with > 5 DTE, consider rolling down and out",
+    "Roll to next monthly if current put expires worthless",
+    "If assigned, switch to covered call template"
+  ],
+  "objective": "Generate income from put selling with willingness to acquire stock at discount",
+  "risk_profile": {
+    "max_profit": "Premium received",
+    "max_loss": "Strike price * 100 - premium received (stock goes to zero)",
+    "breakeven": "Strike - premium per share"
+  },
+  "best_environment": "Neutral to bullish, elevated IV, fundamentally sound underlying you would own",
+  "default_parameters": {
+    "delta_target": 0.20,
+    "dte_target": 30,
+    "profit_target_pct": 80,
+    "roll_trigger_delta": 0.50,
+    "iv_rank_min": 25
+  }
+}
