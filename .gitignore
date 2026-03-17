@@ -1,6 +1,6 @@
 node_modules/
 dist/
 engine/.venv/
-data/
+/data/
 *.input.json
 *.output.json
