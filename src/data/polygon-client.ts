@@ -2,6 +2,8 @@
  * Polygon.io API client for market data.
  * Docs: https://polygon.io/docs
  */
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 type Logger = { info: (msg: string) => void; warn: (msg: string) => void; error: (msg: string) => void };
 
@@ -17,12 +19,24 @@ type OHLCVParams = {
 	interval?: string;
 };
 
+type PolygonBar = {
+	t: number; // timestamp ms
+	o: number;
+	h: number;
+	l: number;
+	c: number;
+	v: number;
+	vw?: number;
+	n?: number;
+};
+
 export class PolygonClient {
 	private baseUrl = "https://api.polygon.io";
 
 	constructor(
 		private apiKey: string,
 		private logger: Logger,
+		private cacheDir?: string,
 	) {}
 
 	private async fetch(path: string, params: Record<string, string> = {}): Promise<unknown> {
@@ -39,6 +53,60 @@ export class PolygonClient {
 		}
 		return response.json();
 	}
+
+	// ── OHLCV cache helpers ──
+
+	private getCacheFile(symbol: string, interval: string): string {
+		return path.join(this.cacheDir!, "ohlcv", `${symbol}-${interval}.json`);
+	}
+
+	private loadOHLCVCache(symbol: string, interval: string): PolygonBar[] | null {
+		if (!this.cacheDir) return null;
+		const file = this.getCacheFile(symbol, interval);
+		try {
+			if (!fs.existsSync(file)) return null;
+			return JSON.parse(fs.readFileSync(file, "utf-8")) as PolygonBar[];
+		} catch {
+			return null;
+		}
+	}
+
+	private saveOHLCVCache(symbol: string, interval: string, bars: PolygonBar[]): void {
+		if (!this.cacheDir) return;
+		const dir = path.join(this.cacheDir, "ohlcv");
+		try {
+			fs.mkdirSync(dir, { recursive: true });
+			fs.writeFileSync(this.getCacheFile(symbol, interval), JSON.stringify(bars));
+		} catch (e) {
+			this.logger.warn(`OHLCV cache write failed: ${(e as Error).message}`);
+		}
+	}
+
+	/** Returns true if sorted bars array fully covers [startDate, endDate] and endDate is > 2 days old. */
+	private cacheCovers(bars: PolygonBar[], startDate: string, endDate: string): boolean {
+		if (bars.length === 0) return false;
+		const startMs = new Date(startDate).getTime();
+		const endMs = new Date(endDate).getTime();
+		const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+		// Always fetch fresh for recent/live data
+		if (endMs > Date.now() - twoDaysMs) return false;
+		return bars[0].t <= startMs && bars[bars.length - 1].t >= endMs;
+	}
+
+	private filterBars(bars: PolygonBar[], startDate: string, endDate: string): PolygonBar[] {
+		const startMs = new Date(startDate).getTime();
+		const endMs = new Date(endDate).getTime() + 86400000; // include full end day
+		return bars.filter((b) => b.t >= startMs && b.t < endMs);
+	}
+
+	private mergeBars(existing: PolygonBar[], newBars: PolygonBar[]): PolygonBar[] {
+		const map = new Map<number, PolygonBar>();
+		for (const b of existing) map.set(b.t, b);
+		for (const b of newBars) map.set(b.t, b);
+		return Array.from(map.values()).sort((a, b) => a.t - b.t);
+	}
+
+	// ── Public methods ──
 
 	async getQuote(symbol: string) {
 		// Free tier: snapshot endpoint requires paid plan.
@@ -59,8 +127,8 @@ export class PolygonClient {
 		// Options snapshot requires Starter+ plan.
 		// Free tier: use options contracts reference endpoint as fallback.
 		try {
+			// Note: underlyingAsset is path-only; do not repeat as query param.
 			const params: Record<string, string> = {
-				"underlying_ticker": symbol,
 				"limit": "250",
 				"order": "asc",
 				"sort": "strike_price",
@@ -101,21 +169,44 @@ export class PolygonClient {
 	}
 
 	async getHistoricalOHLCV(symbol: string, params: OHLCVParams) {
-		const multiplier = params.interval === "1h" ? "1" : params.interval === "5m" ? "5" : "1";
-		const timespan = params.interval === "1h" ? "hour" : params.interval === "5m" ? "minute" : "day";
+		const interval = params.interval ?? "1d";
 		const endDate = params.endDate ?? new Date().toISOString().slice(0, 10);
+
+		// Check cache first
+		const cached = this.loadOHLCVCache(symbol, interval);
+		if (cached && this.cacheCovers(cached, params.startDate, endDate)) {
+			this.logger.info(`OHLCV cache hit: ${symbol} ${interval}`);
+			const filtered = this.filterBars(cached, params.startDate, endDate);
+			return {
+				symbol,
+				start_date: params.startDate,
+				end_date: endDate,
+				interval,
+				source: "cache",
+				data: { ticker: symbol, status: "OK", resultsCount: filtered.length, results: filtered },
+			};
+		}
+
+		const multiplier = interval === "1h" ? "1" : interval === "5m" ? "5" : "1";
+		const timespan = interval === "1h" ? "hour" : interval === "5m" ? "minute" : "day";
 
 		const data = await this.fetch(
 			`/v2/aggs/ticker/${symbol}/range/${multiplier}/${timespan}/${params.startDate}/${endDate}`,
 			{ adjusted: "true", sort: "asc", limit: "50000" },
-		);
+		) as { results?: PolygonBar[] };
 
-		return { symbol, start_date: params.startDate, end_date: endDate, interval: params.interval ?? "1d", data };
+		// Merge fetched bars into cache
+		if (data.results && data.results.length > 0) {
+			const merged = cached ? this.mergeBars(cached, data.results) : data.results;
+			this.saveOHLCVCache(symbol, interval, merged);
+		}
+
+		return { symbol, start_date: params.startDate, end_date: endDate, interval, source: "api", data };
 	}
 
 	async getIVSurface(symbol: string) {
+		// Note: underlyingAsset is path-only; do not repeat as query param.
 		const chain = await this.fetch("/v3/snapshot/options/" + symbol, {
-			underlying_ticker: symbol,
 			limit: "250",
 			order: "asc",
 			sort: "expiration_date",
@@ -125,19 +216,39 @@ export class PolygonClient {
 	}
 
 	async getEarningsCalendar(symbols: string[] | undefined, daysAhead: number) {
-		// Polygon doesn't have a direct earnings calendar endpoint.
-		// Use the reference/tickers endpoint with type filter, or fallback.
-		// For now, use the stock financials endpoint for each symbol.
+		// Polygon free tier: use /vX/reference/financials to get most recent quarterly
+		// period end date and estimate the next earnings date as +90 days.
 		if (symbols && symbols.length > 0) {
+			type FinancialResult = { period_of_report_date?: string; fiscal_period?: string; fiscal_year?: string };
 			const results = await Promise.all(
 				symbols.map(async (sym) => {
 					try {
-						const data = await this.fetch(`/vX/reference/tickers/${sym.toUpperCase()}/events`, {
-							types: "dividend,split",
-						});
-						return { symbol: sym, events: data };
+						const data = await this.fetch(`/vX/reference/financials`, {
+							ticker: sym.toUpperCase(),
+							timeframe: "quarterly",
+							sort: "period_of_report_date",
+							order: "desc",
+							limit: "2",
+						}) as { results?: FinancialResult[] };
+
+						const recent = data.results?.[0];
+						let estimated_next: string | null = null;
+						if (recent?.period_of_report_date) {
+							const nextDate = new Date(recent.period_of_report_date);
+							nextDate.setDate(nextDate.getDate() + 90);
+							estimated_next = nextDate.toISOString().slice(0, 10);
+						}
+
+						return {
+							symbol: sym,
+							most_recent_period: recent?.period_of_report_date ?? null,
+							fiscal_period: recent?.fiscal_period ?? null,
+							fiscal_year: recent?.fiscal_year ?? null,
+							estimated_next_earnings: estimated_next,
+							note: "Estimated: last period end + 90 days. Actual date may differ — verify with an official earnings calendar.",
+						};
 					} catch {
-						return { symbol: sym, events: null, error: "Not available" };
+						return { symbol: sym, error: "Earnings data not available for this symbol on free tier." };
 					}
 				}),
 			);
@@ -146,15 +257,16 @@ export class PolygonClient {
 
 		return {
 			days_ahead: daysAhead,
-			message: "Provide specific symbols to check earnings. Broad market earnings calendar requires FMP or similar API.",
+			message: "Provide specific symbols to check earnings. Broad market earnings calendar requires FMP or a dedicated calendar API.",
 		};
 	}
 
 	async getDividendHistory(symbol: string, years: number) {
+		// Note: /v3/reference/dividends has no 'order' param; direction is a suffix on 'sort'.
 		const data = await this.fetch(`/v3/reference/dividends`, {
 			ticker: symbol,
 			limit: String(years * 12),
-			order: "desc",
+			sort: "ex_dividend_date.desc",
 		});
 
 		return { symbol, years, dividends: data };

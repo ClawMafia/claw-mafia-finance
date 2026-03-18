@@ -5,7 +5,7 @@ import { FredClient } from "../data/fred-client.js";
 import { jsonResult } from "./result.js";
 
 export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginContext) {
-	const polygon = new PolygonClient(ctx.config.polygonApiKey, ctx.logger);
+	const polygon = new PolygonClient(ctx.config.polygonApiKey, ctx.logger, ctx.dataDir);
 	const fred = ctx.config.fredApiKey ? new FredClient(ctx.config.fredApiKey, ctx.logger) : null;
 
 	// ── get_stock_quote ──
