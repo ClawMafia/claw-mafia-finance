@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "claw-mafia-finance/strategy-spec",
+  "title": "StrategySpec",
+  "description": "Strategy specification for backtesting and paper trading",
+  "type": "object",
+  "required": ["strategy_id", "universe", "structure", "entry_rules", "exit_rules", "objective"],
+  "additionalProperties": true,
+  "properties": {
+    "strategy_id": {
+      "type": "string",
+      "description": "Unique identifier for this strategy, e.g. qqq_collar_weekly_v1",
+      "pattern": "^[a-z0-9_-]+$"
+    },
+    "universe": {
+      "type": "array",
+      "description": "List of underlying tickers this strategy trades",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "structure": {
+      "type": "string",
+      "description": "Options structure type",
+      "enum": ["covered_call", "collar", "put_write", "calendar_spread", "custom"]
+    },
+    "legs": {
+      "type": "array",
+      "description": "Explicit leg definitions (optional; used when structure requires detail)",
+      "items": {
+        "type": "object",
+        "required": ["type", "side"],
+        "properties": {
+          "type": { "type": "string", "enum": ["call", "put", "stock"] },
+          "side": { "type": "string", "enum": ["buy", "sell"] },
+          "delta_target": { "type": "number", "minimum": 0, "maximum": 1 },
+          "dte_target": { "type": "integer", "minimum": 1 },
+          "strike": { "type": "number" },
+          "quantity": { "type": "integer", "minimum": 1 },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "entry_rules": {
+      "type": "array",
+      "description": "Conditions and procedures for entering the strategy",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "exit_rules": {
+      "type": "array",
+      "description": "Conditions and procedures for exiting the strategy",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "roll_rules": {
+      "type": "array",
+      "description": "Rules for rolling expiring positions",
+      "items": { "type": "string" }
+    },
+    "objective": {
+      "type": "string",
+      "description": "Plain-language statement of the strategy's purpose and expected behavior"
+    },
+    "assumptions": {
+      "type": "array",
+      "description": "Market conditions the strategy assumes will hold; state what would invalidate the strategy",
+      "items": { "type": "string" }
+    },
+    "constraints": {
+      "type": "object",
+      "description": "Risk/sizing constraints",
+      "properties": {
+        "max_loss_per_trade_pct": { "type": "number", "description": "Max loss per trade as % of account" },
+        "min_credit_per_cycle_pct": { "type": "number", "description": "Min required premium as % of notional" },
+        "max_position_notional": { "type": "number", "description": "Max notional size per position in USD" },
+        "max_positions": { "type": "integer", "description": "Max concurrent positions" }
+      }
+    },
+    "best_environment": {
+      "type": "string",
+      "description": "Market regime where this strategy performs best"
+    },
+    "default_parameters": {
+      "type": "object",
+      "description": "Default numeric parameters for entry/exit rules",
+      "properties": {
+        "delta_target": { "type": "number" },
+        "dte_target": { "type": "integer" },
+        "roll_trigger_delta": { "type": "number" },
+        "profit_target_pct": { "type": "number" }
+      }
+    }
+  }
+}

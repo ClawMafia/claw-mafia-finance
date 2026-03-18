@@ -1,6 +1,6 @@
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { jsonResult } from "./result.js";
@@ -31,7 +31,14 @@ export function registerStrategyTools(api: OpenClawPluginApi, ctx: PluginContext
 				const templateId = params.template_id as string | undefined;
 
 				if (!templateId) {
-					const templates = ["covered-call", "collar", "put-write", "calendar-spread"];
+					let templates: string[] = [];
+					try {
+						templates = readdirSync(STRATEGIES_DIR)
+							.filter(f => f.endsWith(".json"))
+							.map(f => f.replace(".json", ""));
+					} catch {
+						templates = ["covered-call", "collar", "put-write", "calendar-spread"];
+					}
 					return jsonResult({
 						available_templates: templates,
 						usage: "Call again with template_id to get the full specification.",
@@ -72,18 +79,27 @@ export function registerStrategyTools(api: OpenClawPluginApi, ctx: PluginContext
 					const spec = JSON.parse(params.spec as string);
 					const errors: string[] = [];
 
-					if (!spec.strategy_id) errors.push("Missing required field: strategy_id");
-					if (!spec.universe || !Array.isArray(spec.universe)) errors.push("Missing or invalid field: universe (must be array)");
+					// Required fields
+					if (!spec.strategy_id || typeof spec.strategy_id !== "string") errors.push("Missing required field: strategy_id (string)");
+					else if (!/^[a-z0-9_-]+$/.test(spec.strategy_id)) errors.push("strategy_id must be lowercase alphanumeric with underscores/hyphens");
+					if (!spec.universe || !Array.isArray(spec.universe) || spec.universe.length === 0) errors.push("Missing or invalid field: universe (non-empty array of tickers)");
+					const validStructures = ["covered_call", "collar", "put_write", "calendar_spread", "custom"];
 					if (!spec.structure) errors.push("Missing required field: structure");
-					if (!spec.entry_rules || !Array.isArray(spec.entry_rules)) errors.push("Missing or invalid field: entry_rules (must be array)");
-					if (!spec.exit_rules || !Array.isArray(spec.exit_rules)) errors.push("Missing or invalid field: exit_rules (must be array)");
-					if (!spec.objective) errors.push("Missing required field: objective");
+					else if (!validStructures.includes(spec.structure)) errors.push(`Invalid structure '${spec.structure}'. Must be one of: ${validStructures.join(", ")}`);
+					if (!spec.entry_rules || !Array.isArray(spec.entry_rules) || spec.entry_rules.length === 0) errors.push("Missing or invalid field: entry_rules (non-empty array)");
+					if (!spec.exit_rules || !Array.isArray(spec.exit_rules) || spec.exit_rules.length === 0) errors.push("Missing or invalid field: exit_rules (non-empty array)");
+					if (!spec.objective || typeof spec.objective !== "string") errors.push("Missing required field: objective (string)");
+
+					// Recommended fields (warnings only)
+					const warnings: string[] = [];
+					if (!spec.assumptions || !Array.isArray(spec.assumptions) || spec.assumptions.length === 0) warnings.push("Recommended: add assumptions[] stating what market conditions would invalidate the strategy");
+					if (!spec.constraints) warnings.push("Recommended: add constraints{} with max_loss_per_trade_pct and/or max_position_notional");
 
 					if (errors.length > 0) {
-						return jsonResult({ valid: false, errors });
+						return jsonResult({ valid: false, errors, warnings });
 					}
 
-					return jsonResult({ valid: true, strategy_id: spec.strategy_id, structure: spec.structure });
+					return jsonResult({ valid: true, strategy_id: spec.strategy_id, structure: spec.structure, warnings });
 				} catch (e) {
 					return jsonResult({ valid: false, errors: [`Invalid JSON: ${(e as Error).message}`] });
 				}

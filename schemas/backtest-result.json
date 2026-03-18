@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "claw-mafia-finance/backtest-result",
+  "title": "BacktestResult",
+  "description": "Output schema for completed backtest jobs",
+  "type": "object",
+  "required": ["job_id", "strategy_id", "status", "period", "metrics"],
+  "properties": {
+    "job_id": { "type": "string" },
+    "strategy_id": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["approved", "rejected", "needs_more_data", "error"]
+    },
+    "period": {
+      "type": "object",
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "type": "string", "format": "date" },
+        "end": { "type": "string", "format": "date" }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "required": ["annualized_return", "sharpe_ratio", "max_drawdown", "total_trades"],
+      "properties": {
+        "annualized_return": { "type": "number", "description": "Annualized return (decimal)" },
+        "sharpe_ratio": { "type": "number" },
+        "sortino_ratio": { "type": "number" },
+        "calmar_ratio": { "type": "number" },
+        "max_drawdown": { "type": "number", "description": "Max drawdown (negative decimal, e.g. -0.067)" },
+        "win_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "total_trades": { "type": "integer" },
+        "turnover_annual": { "type": "number", "description": "Annualized number of position changes" },
+        "total_costs_bps": { "type": "number", "description": "Total transaction costs in basis points" },
+        "initial_capital": { "type": "number" },
+        "final_equity": { "type": "number" }
+      }
+    },
+    "regime_breakdown": {
+      "type": "object",
+      "description": "Performance metrics segmented by market regime (high_vol, low_vol, trend_up, trend_down)",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "return": { "type": "number" },
+          "sharpe": { "type": "number" },
+          "trades": { "type": "integer" }
+        }
+      }
+    },
+    "stress_results": {
+      "type": "object",
+      "description": "Performance during named stress scenarios",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "return": { "type": "number" },
+          "max_drawdown": { "type": "number" },
+          "dates": { "type": "string" }
+        }
+      }
+    },
+    "rolling_windows": {
+      "type": "object",
+      "description": "Rolling window performance (1y, 3y, 5y)",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "return": { "type": "number" },
+          "sharpe": { "type": "number" }
+        }
+      }
+    },
+    "weaknesses": {
+      "type": "array",
+      "description": "List of identified weaknesses or risks in the backtest",
+      "items": { "type": "string" }
+    },
+    "assumptions": {
+      "type": "object",
+      "description": "Cost and execution assumptions used in the backtest",
+      "properties": {
+        "slippage_bps": { "type": "number" },
+        "commission_per_contract": { "type": "number" },
+        "iv_source": { "type": "string" }
+      }
+    },
+    "trade_log": {
+      "type": "array",
+      "description": "Individual trade records (subset or full)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": { "type": "string" },
+          "action": { "type": "string", "enum": ["open", "close", "roll", "assignment", "expiry"] },
+          "ticker": { "type": "string" },
+          "structure": { "type": "string" },
+          "pnl": { "type": "number" },
+          "cost": { "type": "number" }
+        }
+      }
+    },
+    "error": { "type": "string", "description": "Error message if status is 'error'" }
+  }
+}
