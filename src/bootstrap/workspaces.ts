@@ -19,8 +19,10 @@ type AgentWorkspace = {
 	heartbeat?: string;
 };
 
-const AGENT_WORKSPACES: AgentWorkspace[] = [
-	{ id: "orchestrator",      soul: orchestrator.SOUL,      identity: orchestrator.IDENTITY,      tools: orchestrator.TOOLS,      heartbeat: orchestrator.HEARTBEAT },
+type AgentWorkspaceExtended = AgentWorkspace & { workflow?: string };
+
+const AGENT_WORKSPACES: AgentWorkspaceExtended[] = [
+	{ id: "orchestrator",      soul: orchestrator.SOUL,      identity: orchestrator.IDENTITY,      tools: orchestrator.TOOLS,      heartbeat: orchestrator.HEARTBEAT, workflow: orchestrator.WORKFLOW },
 	{ id: "market-data",       soul: marketData.SOUL,        identity: marketData.IDENTITY,        tools: marketData.TOOLS },
 	{ id: "strategy-research", soul: strategyResearch.SOUL,  identity: strategyResearch.IDENTITY,  tools: strategyResearch.TOOLS },
 	{ id: "backtester",        soul: backtester.SOUL,        identity: backtester.IDENTITY,        tools: backtester.TOOLS },
@@ -45,6 +47,9 @@ export function bootstrapWorkspaces(workspaceBase: string, logger: Logger): void
 		writeIfMissing(path.join(dir, "TOOLS.md"),    agent.tools);
 		if (agent.heartbeat) {
 			writeIfMissing(path.join(dir, "HEARTBEAT.md"), agent.heartbeat);
+		}
+		if ((agent as AgentWorkspaceExtended).workflow) {
+			writeIfMissing(path.join(dir, "WORKFLOW.md"), (agent as AgentWorkspaceExtended).workflow!);
 		}
 	}
 	logger.info("claw-mafia-finance: agent workspaces bootstrapped");
