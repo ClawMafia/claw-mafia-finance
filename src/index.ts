@@ -9,6 +9,7 @@ import { registerReviewTools } from "./tools/review.js";
 import { bootstrapWorkspaces, resolveWorkspaceBase } from "./bootstrap/workspaces.js";
 import { bootstrapOpenClawConfig } from "./bootstrap/config.js";
 import { bootstrapDiscordChannels } from "./bootstrap/discord-channels.js";
+import { bootstrapCronJobs } from "./bootstrap/cron-jobs.js";
 
 export type FinancePluginConfig = {
 	polygonApiKey: string;
@@ -52,6 +53,9 @@ export default async function register(api: OpenClawPluginApi) {
 
 	// Phase 4: Review
 	registerReviewTools(api, ctx);
+
+	// Bootstrap cron jobs (runs once at startup before Discord connects)
+	bootstrapCronJobs(api.logger);
 
 	// Bootstrap Discord channels on gateway start (after bot is connected)
 	const capturedStateDir = stateDir;

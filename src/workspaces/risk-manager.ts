@@ -74,6 +74,18 @@ Use during heartbeat to monitor for kill switch conditions.
 
 ## get_backtest_results
 Fetch backtest results for a strategy candidate during risk review.
+
+## get_risk_config
+Read current risk limits and kill switch status.
+Call at the start of every risk review to verify current thresholds.
+
+## set_risk_config
+Update risk limits (portfolio VaR, drawdown, IV thresholds, etc.).
+Only modify with explicit user approval. Document the reason for any change.
+
+## trigger_kill_switch
+Activate or clear the portfolio kill switch.
+Activate immediately when any kill switch trigger is confirmed. Always post reason to \`#risk-watch\`.
 `;
 
 export const HEARTBEAT = `# HEARTBEAT.md — Risk Manager

@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RiskConfig",
+  "description": "Portfolio risk limits and kill switch configuration for Claw Mafia Finance.",
+  "type": "object",
+  "properties": {
+    "portfolio": {
+      "type": "object",
+      "description": "Portfolio-level risk limits",
+      "properties": {
+        "max_daily_var_pct": {
+          "type": "number",
+          "description": "Maximum daily portfolio VaR as fraction of equity (e.g. 0.012 = 1.2%). Kill switch above this.",
+          "default": 0.012
+        },
+        "max_drawdown_pct": {
+          "type": "number",
+          "description": "Maximum portfolio drawdown as fraction of equity (e.g. 0.08 = 8%). Kill switch above this.",
+          "default": 0.08
+        },
+        "max_net_delta_pct": {
+          "type": "number",
+          "description": "Maximum net delta exposure as fraction of equity (e.g. 0.50 = 50%).",
+          "default": 0.50
+        },
+        "max_gross_notional_pct": {
+          "type": "number",
+          "description": "Maximum gross notional exposure as fraction of equity (e.g. 1.5 = 150%).",
+          "default": 1.5
+        }
+      }
+    },
+    "strategy": {
+      "type": "object",
+      "description": "Per-strategy risk limits",
+      "properties": {
+        "max_drawdown_pct": {
+          "type": "number",
+          "description": "Maximum per-strategy drawdown as fraction of equity. Alert above this.",
+          "default": 0.05
+        },
+        "max_allocation_pct": {
+          "type": "number",
+          "description": "Maximum allocation per strategy as fraction of equity (e.g. 0.30 = 30%).",
+          "default": 0.30
+        },
+        "max_position_notional_pct": {
+          "type": "number",
+          "description": "Maximum notional per position as fraction of equity (e.g. 0.15 = 15%).",
+          "default": 0.15
+        }
+      }
+    },
+    "sector": {
+      "type": "object",
+      "description": "Sector concentration limits",
+      "properties": {
+        "max_sector_weight_pct": {
+          "type": "number",
+          "description": "Maximum exposure to any single sector as fraction of equity (e.g. 0.40 = 40%).",
+          "default": 0.40
+        }
+      }
+    },
+    "volatility": {
+      "type": "object",
+      "description": "Volatility-based kill switch thresholds",
+      "properties": {
+        "iv_spike_multiplier": {
+          "type": "number",
+          "description": "Kill switch trigger: current IV > this multiple of 20-day average IV (e.g. 2.0 = 2x).",
+          "default": 2.0
+        },
+        "iv_alert_multiplier": {
+          "type": "number",
+          "description": "Alert threshold: current IV > this multiple of 20-day average (e.g. 1.5 = 1.5x).",
+          "default": 1.5
+        },
+        "correlation_breach_threshold": {
+          "type": "number",
+          "description": "Reject/reduce allocation when pairwise correlation exceeds this value (e.g. 0.9).",
+          "default": 0.9
+        }
+      }
+    },
+    "kill_switch": {
+      "type": "object",
+      "description": "Kill switch state and configuration",
+      "properties": {
+        "active": {
+          "type": "boolean",
+          "description": "Whether the kill switch is currently active (halts new paper orders).",
+          "default": false
+        },
+        "reason": {
+          "type": "string",
+          "description": "Human-readable reason the kill switch was triggered."
+        },
+        "triggered_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp when the kill switch was triggered."
+        },
+        "auto_resume_after_hours": {
+          "type": "number",
+          "description": "Automatically clear kill switch after this many hours (0 = manual only).",
+          "default": 0
+        }
+      }
+    }
+  }
+}

@@ -26,7 +26,8 @@ const TOOLS_ALLOW: Record<string, string[]> = {
 	"risk-manager": [
 		"calculate_portfolio_var", "check_position_limits", "stress_test_scenario",
 		"correlation_matrix", "exposure_report", "get_backtest_results",
-		"paper_get_positions", "paper_get_pnl", "message",
+		"paper_get_positions", "paper_get_pnl",
+		"get_risk_config", "set_risk_config", "trigger_kill_switch", "message",
 	],
 	"paper-executor": [
 		"paper_submit_order", "paper_cancel_order", "paper_get_positions",

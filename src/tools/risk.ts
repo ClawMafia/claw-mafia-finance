@@ -2,6 +2,7 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
 import { jsonResult } from "./result.js";
 import { callPaperBroker } from "../paper-broker-client.js";
+import { loadRiskConfig, saveRiskConfig, triggerKillSwitch, clearKillSwitch, DEFAULT_RISK_LIMITS } from "../risk-config.js";
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -413,6 +414,125 @@ export function registerRiskTools(api: OpenClawPluginApi, ctx: PluginContext) {
 					),
 					positions: positions.length,
 				});
+			},
+		},
+		{ optional: true },
+	);
+
+	// ── get_risk_config ──
+	api.registerTool(
+		{
+			name: "get_risk_config",
+			label: "Get Risk Config",
+			description: "Read current risk limits and kill switch status.",
+			parameters: { type: "object", properties: {} },
+			async execute(_toolCallId: string, _params: Record<string, unknown>) {
+				const config = loadRiskConfig(ctx.dataDir);
+				return jsonResult({
+					...config,
+					_defaults: DEFAULT_RISK_LIMITS,
+					_note: "Use set_risk_config to override individual limits.",
+				});
+			},
+		},
+		{ optional: true },
+	);
+
+	// ── set_risk_config ──
+	api.registerTool(
+		{
+			name: "set_risk_config",
+			label: "Set Risk Config",
+			description:
+				"Update risk limits. Pass only the fields to change; others stay at current values. " +
+				"Accepts nested JSON patch (e.g. portfolio.max_drawdown_pct, volatility.iv_spike_multiplier).",
+			parameters: {
+				type: "object",
+				properties: {
+					config_patch: {
+						type: "string",
+						description: "JSON patch object with fields to update, e.g. {\"portfolio\": {\"max_drawdown_pct\": 0.10}}",
+					},
+				},
+				required: ["config_patch"],
+			},
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
+				let patch: Record<string, unknown>;
+				try {
+					patch = JSON.parse(params.config_patch as string);
+				} catch (e) {
+					return jsonResult({ error: `Invalid JSON: ${(e as Error).message}` });
+				}
+
+				const current = loadRiskConfig(ctx.dataDir);
+				// Deep merge one level
+				const updated = { ...current };
+				for (const key of Object.keys(patch) as Array<keyof typeof current>) {
+					if (typeof patch[key] === "object" && patch[key] !== null && typeof current[key] === "object") {
+						(updated as Record<string, unknown>)[key] = { ...(current[key] as object), ...(patch[key] as object) };
+					} else {
+						(updated as Record<string, unknown>)[key] = patch[key];
+					}
+				}
+
+				saveRiskConfig(ctx.dataDir, updated);
+				return jsonResult({ status: "updated", config: updated });
+			},
+		},
+		{ optional: true },
+	);
+
+	// ── trigger_kill_switch ──
+	api.registerTool(
+		{
+			name: "trigger_kill_switch",
+			label: "Trigger Kill Switch",
+			description:
+				"Activate or clear the portfolio kill switch. " +
+				"When active, paper-executor will not accept new orders. " +
+				"Activation should be posted to #risk-watch.",
+			parameters: {
+				type: "object",
+				properties: {
+					action: {
+						type: "string",
+						enum: ["activate", "clear"],
+						description: "'activate' to halt trading, 'clear' to resume.",
+					},
+					reason: {
+						type: "string",
+						description: "Required when activating: human-readable reason.",
+					},
+					auto_resume_after_hours: {
+						type: "number",
+						description: "Automatically clear after this many hours (0 = manual only).",
+					},
+				},
+				required: ["action"],
+			},
+			async execute(_toolCallId: string, params: Record<string, unknown>) {
+				if (params.action === "activate") {
+					if (!params.reason) {
+						return jsonResult({ error: "reason is required when activating kill switch." });
+					}
+					const config = triggerKillSwitch(ctx.dataDir, params.reason as string);
+					if (params.auto_resume_after_hours) {
+						config.kill_switch.auto_resume_after_hours = params.auto_resume_after_hours as number;
+						saveRiskConfig(ctx.dataDir, config);
+					}
+					ctx.logger.warn(`KILL SWITCH ACTIVATED: ${params.reason}`);
+					return jsonResult({
+						status: "activated",
+						kill_switch: config.kill_switch,
+						alert: "Post this to #risk-watch immediately.",
+					});
+				}
+				if (params.action === "clear") {
+					const config = clearKillSwitch(ctx.dataDir);
+					ctx.logger.info("Kill switch cleared");
+					return jsonResult({ status: "cleared", kill_switch: config.kill_switch });
+				}
+				return jsonResult({ error: `Unknown action '${params.action}'. Use 'activate' or 'clear'.` });
 			},
 		},
 		{ optional: true },
