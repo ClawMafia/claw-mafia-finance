@@ -82,7 +82,14 @@ export async function bootstrapOpenClawConfig(
 	const orchestratorEntry = existingList.find((a) => a.id === "orchestrator");
 
 	// Guard: skip entirely only if orchestrator is already configured with subagents
-	if (orchestratorEntry && (orchestratorEntry as Record<string, unknown>)["subagents"]) {
+	// AND the workspace path matches the current resolved workspace base
+	const expectedWorkspace = `${workspaceBase}/orchestrator`;
+	const existingWorkspace = (orchestratorEntry as Record<string, unknown> | undefined)?.["workspace"] as string | undefined;
+	if (
+		orchestratorEntry &&
+		(orchestratorEntry as Record<string, unknown>)["subagents"] &&
+		existingWorkspace === expectedWorkspace
+	) {
 		logger.info("claw-mafia-finance: openclaw.json agent config already present, skipping");
 		return;
 	}
@@ -96,13 +103,16 @@ export async function bootstrapOpenClawConfig(
 		...(AGENT_SUBAGENTS[id] ? { subagents: { allowAgents: AGENT_SUBAGENTS[id] } } : {}),
 	}));
 
-	// If agents already exist (missing subagents), merge subagents into existing entries
-	// rather than appending duplicates
+	// If agents already exist (missing subagents or workspace), merge updates into existing entries
 	const agentList = existingList.length > 0
 		? existingList.map((existing) => {
 			const fresh = freshAgentList.find((f) => f.id === existing.id);
 			if (!fresh) return existing;
-			return { ...existing, ...(fresh.subagents ? { subagents: fresh.subagents } : {}) };
+			return {
+				...existing,
+				workspace: fresh.workspace,
+				...(fresh.subagents ? { subagents: fresh.subagents } : {}),
+			};
 		})
 		: freshAgentList;
 

@@ -55,7 +55,12 @@ export function bootstrapWorkspaces(workspaceBase: string, logger: Logger): void
 	logger.info("claw-mafia-finance: agent workspaces bootstrapped");
 }
 
-/** Resolve the workspace base directory from the OpenClaw state dir. */
+/** Resolve the workspace base directory.
+ * Respects OPENCLAW_WORKSPACE_DIR env var (set by Railway/Docker wrapper),
+ * falling back to {stateDir}/workspace for local development.
+ */
 export function resolveWorkspaceBase(stateDir: string): string {
+	const envDir = process.env.OPENCLAW_WORKSPACE_DIR?.trim();
+	if (envDir) return envDir;
 	return path.join(stateDir, "workspace");
 }
