@@ -8,6 +8,7 @@ import { registerPaperTradingTools } from "./tools/paper-trading.js";
 import { registerReviewTools } from "./tools/review.js";
 import { bootstrapWorkspaces, resolveWorkspaceBase } from "./bootstrap/workspaces.js";
 import { bootstrapOpenClawConfig } from "./bootstrap/config.js";
+import { bootstrapDiscordChannels } from "./bootstrap/discord-channels.js";
 
 export type FinancePluginConfig = {
 	polygonApiKey: string;
@@ -51,6 +52,12 @@ export default async function register(api: OpenClawPluginApi) {
 
 	// Phase 4: Review
 	registerReviewTools(api, ctx);
+
+	// Bootstrap Discord channels on gateway start (after bot is connected)
+	const capturedStateDir = stateDir;
+	api.on("gateway_start", async () => {
+		await bootstrapDiscordChannels(api, capturedStateDir, api.logger);
+	});
 
 	api.logger.info("claw-mafia-finance plugin loaded");
 }
