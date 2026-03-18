@@ -87,11 +87,10 @@ export async function bootstrapOpenClawConfig(
 		return;
 	}
 
-	// Build fresh agent entries
+	// Build fresh agent entries (no model override — inherit gateway default)
 	const freshAgentList = AGENT_IDS.map((id) => ({
 		id,
 		workspace: `${workspaceBase}/${id}`,
-		model: "claude-sonnet-4-6",
 		tools: { allow: TOOLS_ALLOW[id] },
 		...(AGENT_HEARTBEAT[id] ? { heartbeat: AGENT_HEARTBEAT[id] } : {}),
 		...(AGENT_SUBAGENTS[id] ? { subagents: { allowAgents: AGENT_SUBAGENTS[id] } } : {}),
