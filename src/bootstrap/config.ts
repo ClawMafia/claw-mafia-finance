@@ -41,6 +41,12 @@ const TOOLS_ALLOW: Record<string, string[]> = {
 	],
 };
 
+// Subagents each agent is allowed to spawn via sessions_spawn
+const AGENT_SUBAGENTS: Record<string, string[]> = {
+	"orchestrator": ["market-data", "strategy-research", "backtester", "risk-manager", "paper-executor", "reviewer"],
+	"risk-manager": ["backtester"],
+};
+
 // Per-agent heartbeat overrides (agents with HEARTBEAT.md content)
 const AGENT_HEARTBEAT: Record<string, object> = {
 	"orchestrator": {
@@ -72,23 +78,41 @@ export async function bootstrapOpenClawConfig(
 ): Promise<void> {
 	const cfg = api.runtime.config.loadConfig();
 
-	// Guard: skip if we already bootstrapped (orchestrator entry is present)
-	if (cfg.agents?.list?.some((a) => a.id === "orchestrator")) {
+	const existingList = cfg.agents?.list ?? [];
+	const orchestratorEntry = existingList.find((a) => a.id === "orchestrator");
+
+	// Guard: skip entirely only if orchestrator is already configured with subagents
+	if (orchestratorEntry && (orchestratorEntry as Record<string, unknown>)["subagents"]) {
 		logger.info("claw-mafia-finance: openclaw.json agent config already present, skipping");
 		return;
 	}
 
-	const agentList = AGENT_IDS.map((id) => ({
+	// Build fresh agent entries
+	const freshAgentList = AGENT_IDS.map((id) => ({
 		id,
 		workspace: `${workspaceBase}/${id}`,
 		model: "claude-sonnet-4-6",
 		tools: { allow: TOOLS_ALLOW[id] },
 		...(AGENT_HEARTBEAT[id] ? { heartbeat: AGENT_HEARTBEAT[id] } : {}),
+		...(AGENT_SUBAGENTS[id] ? { subagents: { allowAgents: AGENT_SUBAGENTS[id] } } : {}),
 	}));
 
-	// Single catch-all Discord binding → orchestrator.
-	// Specific per-channel bindings (guildId, peer.id) are added in CLA-9 Discord setup.
-	const newBindings = [
+	// If agents already exist (missing subagents), merge subagents into existing entries
+	// rather than appending duplicates
+	const agentList = existingList.length > 0
+		? existingList.map((existing) => {
+			const fresh = freshAgentList.find((f) => f.id === existing.id);
+			if (!fresh) return existing;
+			return { ...existing, ...(fresh.subagents ? { subagents: fresh.subagents } : {}) };
+		})
+		: freshAgentList;
+
+	// Only add the catch-all binding if this is a fresh bootstrap (no existing agents)
+	const existingBindings = cfg.bindings ?? [];
+	const hasCatchAll = existingBindings.some(
+		(b) => b.agentId === "orchestrator" && b.match.channel === "discord",
+	);
+	const newBindings = hasCatchAll ? [] : [
 		{
 			agentId: "orchestrator",
 			comment: "Route all Discord messages to orchestrator (refine with channel IDs in CLA-9)",
@@ -102,16 +126,15 @@ export async function bootstrapOpenClawConfig(
 			...cfg.agents,
 			defaults: {
 				...cfg.agents?.defaults,
-				// Conservative global heartbeat defaults; individual agents override via agents.list
 				heartbeat: {
 					...cfg.agents?.defaults?.heartbeat,
 					lightContext: true,
 					isolatedSession: true,
 				},
 			},
-			list: [...(cfg.agents?.list ?? []), ...agentList],
+			list: agentList,
 		},
-		bindings: [...(cfg.bindings ?? []), ...newBindings],
+		bindings: [...existingBindings, ...newBindings],
 	};
 
 	await api.runtime.config.writeConfigFile(patch as Parameters<typeof api.runtime.config.writeConfigFile>[0]);
