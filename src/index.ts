@@ -6,6 +6,8 @@ import { registerBacktestTools } from "./tools/backtest.js";
 import { registerRiskTools } from "./tools/risk.js";
 import { registerPaperTradingTools } from "./tools/paper-trading.js";
 import { registerReviewTools } from "./tools/review.js";
+import { bootstrapWorkspaces, resolveWorkspaceBase } from "./bootstrap/workspaces.js";
+import { bootstrapOpenClawConfig } from "./bootstrap/config.js";
 
 export type FinancePluginConfig = {
 	polygonApiKey: string;
@@ -14,7 +16,7 @@ export type FinancePluginConfig = {
 	paperAccountCapital?: number;
 };
 
-export default function register(api: OpenClawPluginApi) {
+export default async function register(api: OpenClawPluginApi) {
 	const config = (api.pluginConfig ?? {}) as FinancePluginConfig;
 
 	if (!config.polygonApiKey) {
@@ -28,6 +30,12 @@ export default function register(api: OpenClawPluginApi) {
 		dataDir,
 		logger: api.logger,
 	};
+
+	// Bootstrap: write agent workspace files and openclaw.json config on first boot
+	const stateDir = api.runtime.state.resolveStateDir();
+	const workspaceBase = resolveWorkspaceBase(stateDir);
+	bootstrapWorkspaces(workspaceBase, api.logger);
+	await bootstrapOpenClawConfig(api, workspaceBase, api.logger);
 
 	// Phase 1: Market data + options pricing
 	registerMarketDataTools(api, ctx);
