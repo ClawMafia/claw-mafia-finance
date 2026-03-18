@@ -68,14 +68,26 @@ export async function bootstrapDiscordChannels(
 		return;
 	}
 
-	// Find the guild ID from discord.guilds config
+	// Find the guild ID: prefer config, fall back to Discord API (bot's guilds)
 	const guilds = (discordCfg["guilds"] ?? {}) as Record<string, unknown>;
-	const guildIds = Object.keys(guilds);
-	if (guildIds.length === 0) {
-		logger.warn("claw-mafia-finance: no Discord guild configured, skipping channel bootstrap");
-		return;
+	let guildId = Object.keys(guilds)[0];
+	if (!guildId) {
+		// Fall back: ask Discord which guilds the bot is in
+		const guildsRes = await fetch("https://discord.com/api/v10/users/@me/guilds", {
+			headers: { "Authorization": `Bot ${token}` },
+		});
+		if (!guildsRes.ok) {
+			logger.warn(`claw-mafia-finance: Discord API error fetching bot guilds: ${guildsRes.status}`);
+			return;
+		}
+		const botGuilds = await guildsRes.json() as Array<{ id: string; name: string }>;
+		if (botGuilds.length === 0) {
+			logger.warn("claw-mafia-finance: bot is not in any Discord guild, skipping channel bootstrap");
+			return;
+		}
+		guildId = botGuilds[0].id;
+		logger.info(`claw-mafia-finance: using guild ${guildId} (${botGuilds[0].name}) from Discord API`);
 	}
-	const guildId = guildIds[0];
 
 	// Fetch existing channels from Discord
 	const existingRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
