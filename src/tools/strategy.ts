@@ -3,6 +3,7 @@ import type { PluginContext } from "../types.js";
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { jsonResult } from "./result.js";
 
 const STRATEGIES_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../strategies");
 
@@ -11,6 +12,7 @@ export function registerStrategyTools(api: OpenClawPluginApi, ctx: PluginContext
 	api.registerTool(
 		{
 			name: "strategy_template_lookup",
+			label: "Strategy Template Lookup",
 			description:
 				"Look up strategy templates from the built-in library. " +
 				"Returns available templates or a specific template's full specification. " +
@@ -30,18 +32,18 @@ export function registerStrategyTools(api: OpenClawPluginApi, ctx: PluginContext
 
 				if (!templateId) {
 					const templates = ["covered-call", "collar", "put-write", "calendar-spread"];
-					return {
+					return jsonResult({
 						available_templates: templates,
 						usage: "Call again with template_id to get the full specification.",
-					};
+					});
 				}
 
 				const filePath = join(STRATEGIES_DIR, `${templateId}.json`);
 				if (!existsSync(filePath)) {
-					return { error: `Template '${templateId}' not found. Use without template_id to list available.` };
+					return jsonResult({ error: `Template '${templateId}' not found. Use without template_id to list available.` });
 				}
 
-				return JSON.parse(readFileSync(filePath, "utf-8"));
+				return jsonResult(JSON.parse(readFileSync(filePath, "utf-8")));
 			},
 		},
 		{ optional: true },
@@ -51,6 +53,7 @@ export function registerStrategyTools(api: OpenClawPluginApi, ctx: PluginContext
 	api.registerTool(
 		{
 			name: "strategy_spec_validator",
+			label: "Strategy Spec Validator",
 			description:
 				"Validate a strategy specification JSON against the required schema. " +
 				"Checks that all required fields are present and types are correct.",
@@ -77,12 +80,12 @@ export function registerStrategyTools(api: OpenClawPluginApi, ctx: PluginContext
 					if (!spec.objective) errors.push("Missing required field: objective");
 
 					if (errors.length > 0) {
-						return { valid: false, errors };
+						return jsonResult({ valid: false, errors });
 					}
 
-					return { valid: true, strategy_id: spec.strategy_id, structure: spec.structure };
+					return jsonResult({ valid: true, strategy_id: spec.strategy_id, structure: spec.structure });
 				} catch (e) {
-					return { valid: false, errors: [`Invalid JSON: ${(e as Error).message}`] };
+					return jsonResult({ valid: false, errors: [`Invalid JSON: ${(e as Error).message}`] });
 				}
 			},
 		},

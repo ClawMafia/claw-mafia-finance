@@ -1,11 +1,13 @@
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
+import { jsonResult } from "./result.js";
 
-export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) {
+export function registerReviewTools(api: OpenClawPluginApi, _ctx: PluginContext) {
 	// ── generate_daily_report ──
 	api.registerTool(
 		{
 			name: "generate_daily_report",
+			label: "Generate Daily Report",
 			description:
 				"Generate daily review report with PnL attribution, position changes, " +
 				"and thesis alignment for all active strategies.",
@@ -17,7 +19,7 @@ export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) 
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 4
-				return { status: "not_implemented", message: "Daily reports are Phase 4." };
+				return jsonResult({ status: "not_implemented", message: "Daily reports are Phase 4." });
 			},
 		},
 		{ optional: true },
@@ -27,6 +29,7 @@ export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) 
 	api.registerTool(
 		{
 			name: "compare_thesis_vs_actual",
+			label: "Compare Thesis vs Actual",
 			description: "Compare the original strategy thesis/assumptions against realized outcomes.",
 			parameters: {
 				type: "object",
@@ -37,7 +40,7 @@ export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) 
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 4
-				return { status: "not_implemented" };
+				return jsonResult({ status: "not_implemented" });
 			},
 		},
 		{ optional: true },
@@ -47,6 +50,7 @@ export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) 
 	api.registerTool(
 		{
 			name: "write_journal_entry",
+			label: "Write Journal Entry",
 			description: "Write a structured review/journal entry to the persistent journal store.",
 			parameters: {
 				type: "object",
@@ -57,7 +61,7 @@ export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) 
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 4
-				return { status: "not_implemented" };
+				return jsonResult({ status: "not_implemented" });
 			},
 		},
 		{ optional: true },
@@ -67,6 +71,7 @@ export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) 
 	api.registerTool(
 		{
 			name: "get_journal_entries",
+			label: "Get Journal Entries",
 			description: "Query past journal entries by date range or strategy.",
 			parameters: {
 				type: "object",
@@ -78,7 +83,7 @@ export function registerReviewTools(api: OpenClawPluginApi, ctx: PluginContext) 
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 4
-				return { status: "not_implemented", entries: [] };
+				return jsonResult({ status: "not_implemented", entries: [] });
 			},
 		},
 		{ optional: true },

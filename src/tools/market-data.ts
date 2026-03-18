@@ -2,6 +2,7 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
 import { PolygonClient } from "../data/polygon-client.js";
 import { FredClient } from "../data/fred-client.js";
+import { jsonResult } from "./result.js";
 
 export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginContext) {
 	const polygon = new PolygonClient(ctx.config.polygonApiKey, ctx.logger);
@@ -11,6 +12,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 	api.registerTool(
 		{
 			name: "get_stock_quote",
+			label: "Get Stock Quote",
 			description:
 				"Get current stock quote including price, volume, change, and basic stats. " +
 				"Use this for quick price checks on individual symbols.",
@@ -23,7 +25,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				const symbol = (params.symbol as string).toUpperCase();
-				return polygon.getQuote(symbol);
+				return jsonResult(await polygon.getQuote(symbol));
 			},
 		},
 		{ optional: true },
@@ -33,6 +35,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 	api.registerTool(
 		{
 			name: "get_options_chain",
+			label: "Get Options Chain",
 			description:
 				"Fetch options chain for a symbol. Returns strikes, expiries, IV, greeks, OI. " +
 				"Optionally filter by expiration date or strike range around ATM.",
@@ -55,11 +58,11 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				const symbol = (params.symbol as string).toUpperCase();
-				return polygon.getOptionsChain(symbol, {
+				return jsonResult(await polygon.getOptionsChain(symbol, {
 					expiration: params.expiration as string | undefined,
 					strikeRangePct: (params.strike_range_pct as number) ?? 20,
 					optionType: params.option_type as "call" | "put" | undefined,
-				});
+				}));
 			},
 		},
 		{ optional: true },
@@ -69,6 +72,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 	api.registerTool(
 		{
 			name: "get_historical_ohlcv",
+			label: "Get Historical OHLCV",
 			description:
 				"Fetch historical OHLCV (open, high, low, close, volume) bars for a symbol. " +
 				"Data is cached locally after first fetch. Default interval is daily.",
@@ -88,11 +92,11 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				const symbol = (params.symbol as string).toUpperCase();
-				return polygon.getHistoricalOHLCV(symbol, {
+				return jsonResult(await polygon.getHistoricalOHLCV(symbol, {
 					startDate: params.start_date as string,
 					endDate: params.end_date as string | undefined,
 					interval: (params.interval as string) ?? "1d",
-				});
+				}));
 			},
 		},
 		{ optional: true },
@@ -102,6 +106,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 	api.registerTool(
 		{
 			name: "get_iv_surface",
+			label: "Get IV Surface",
 			description:
 				"Get implied volatility surface for a symbol — IV by strike and expiration. " +
 				"Useful for analyzing term structure and skew.",
@@ -114,7 +119,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				const symbol = (params.symbol as string).toUpperCase();
-				return polygon.getIVSurface(symbol);
+				return jsonResult(await polygon.getIVSurface(symbol));
 			},
 		},
 		{ optional: true },
@@ -124,6 +129,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 	api.registerTool(
 		{
 			name: "get_earnings_calendar",
+			label: "Get Earnings Calendar",
 			description:
 				"Get upcoming earnings dates for specified symbols or the market. " +
 				"Important for options strategies around earnings events.",
@@ -141,7 +147,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				const symbols = params.symbols as string[] | undefined;
 				const daysAhead = (params.days_ahead as number) ?? 14;
-				return polygon.getEarningsCalendar(symbols, daysAhead);
+				return jsonResult(await polygon.getEarningsCalendar(symbols, daysAhead));
 			},
 		},
 		{ optional: true },
@@ -151,6 +157,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 	api.registerTool(
 		{
 			name: "get_risk_free_rate",
+			label: "Get Risk-Free Rate",
 			description:
 				"Get current US Treasury risk-free rates from FRED. " +
 				"Used for options pricing (Black-Scholes) and discount rates.",
@@ -166,10 +173,10 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				if (!fred) {
-					return { error: "FRED API key not configured. Set fredApiKey in plugin config." };
+					return jsonResult({ error: "FRED API key not configured. Set fredApiKey in plugin config." });
 				}
 				const tenor = (params.tenor as string) ?? "3m";
-				return fred.getRiskFreeRate(tenor);
+				return jsonResult(await fred.getRiskFreeRate(tenor));
 			},
 		},
 		{ optional: true },
@@ -179,6 +186,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 	api.registerTool(
 		{
 			name: "get_dividend_history",
+			label: "Get Dividend History",
 			description:
 				"Get dividend history for a symbol including ex-dates, payment dates, and amounts. " +
 				"Important for covered call and collar strategy modeling.",
@@ -193,7 +201,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				const symbol = (params.symbol as string).toUpperCase();
 				const years = (params.years as number) ?? 3;
-				return polygon.getDividendHistory(symbol, years);
+				return jsonResult(await polygon.getDividendHistory(symbol, years));
 			},
 		},
 		{ optional: true },
@@ -203,6 +211,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 	api.registerTool(
 		{
 			name: "get_economic_calendar",
+			label: "Get Economic Calendar",
 			description:
 				"Get upcoming economic events (FOMC, CPI, NFP, etc.). " +
 				"Useful for timing volatility strategies around macro events.",
@@ -214,10 +223,10 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				if (!fred) {
-					return { error: "FRED API key not configured." };
+					return jsonResult({ error: "FRED API key not configured." });
 				}
 				const daysAhead = (params.days_ahead as number) ?? 14;
-				return fred.getEconomicCalendar(daysAhead);
+				return jsonResult(await fred.getEconomicCalendar(daysAhead));
 			},
 		},
 		{ optional: true },

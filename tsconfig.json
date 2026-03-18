@@ -9,7 +9,11 @@
     "outDir": "dist",
     "rootDir": "src",
     "declaration": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "paths": {
+      "openclaw/*": ["../openclaw/dist/*"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "engine"]

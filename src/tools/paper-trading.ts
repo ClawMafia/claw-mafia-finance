@@ -1,11 +1,13 @@
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
+import { jsonResult } from "./result.js";
 
-export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginContext) {
+export function registerPaperTradingTools(api: OpenClawPluginApi, _ctx: PluginContext) {
 	// ── paper_submit_order ──
 	api.registerTool(
 		{
 			name: "paper_submit_order",
+			label: "Submit Paper Order",
 			description:
 				"Submit a paper trading order. Only for approved strategies. " +
 				"Supports stock and options orders with market or limit type.",
@@ -24,7 +26,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
-				return { status: "not_implemented", message: "Paper trading is Phase 3." };
+				return jsonResult({ status: "not_implemented", message: "Paper trading is Phase 3." });
 			},
 		},
 		{ optional: true },
@@ -34,6 +36,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 	api.registerTool(
 		{
 			name: "paper_cancel_order",
+			label: "Cancel Paper Order",
 			description: "Cancel a pending paper trading order.",
 			parameters: {
 				type: "object",
@@ -44,7 +47,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
-				return { status: "not_implemented" };
+				return jsonResult({ status: "not_implemented" });
 			},
 		},
 		{ optional: true },
@@ -54,6 +57,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 	api.registerTool(
 		{
 			name: "paper_get_positions",
+			label: "Get Paper Positions",
 			description: "Get current paper trading positions, optionally filtered by strategy.",
 			parameters: {
 				type: "object",
@@ -63,7 +67,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
-				return { status: "not_implemented", positions: [] };
+				return jsonResult({ status: "not_implemented", positions: [] });
 			},
 		},
 		{ optional: true },
@@ -73,6 +77,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 	api.registerTool(
 		{
 			name: "paper_get_pnl",
+			label: "Get Paper PnL",
 			description: "Get paper trading PnL (realized + unrealized), optionally by strategy and period.",
 			parameters: {
 				type: "object",
@@ -83,7 +88,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
-				return { status: "not_implemented" };
+				return jsonResult({ status: "not_implemented" });
 			},
 		},
 		{ optional: true },
@@ -93,6 +98,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 	api.registerTool(
 		{
 			name: "paper_roll_position",
+			label: "Roll Paper Position",
 			description: "Roll an expiring options position to a new expiration (and optionally new strike).",
 			parameters: {
 				type: "object",
@@ -105,7 +111,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
-				return { status: "not_implemented" };
+				return jsonResult({ status: "not_implemented" });
 			},
 		},
 		{ optional: true },
@@ -115,6 +121,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 	api.registerTool(
 		{
 			name: "paper_get_order_history",
+			label: "Get Paper Order History",
 			description: "Get paper trading order history log.",
 			parameters: {
 				type: "object",
@@ -126,7 +133,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginCon
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
 				// TODO Phase 3
-				return { status: "not_implemented", orders: [] };
+				return jsonResult({ status: "not_implemented", orders: [] });
 			},
 		},
 		{ optional: true },

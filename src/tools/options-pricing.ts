@@ -1,12 +1,14 @@
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
 import { runPythonEngine } from "../engine-runner.js";
+import { jsonResult } from "./result.js";
 
 export function registerOptionsPricingTools(api: OpenClawPluginApi, ctx: PluginContext) {
 	// ── black_scholes_pricer ──
 	api.registerTool(
 		{
 			name: "black_scholes_pricer",
+			label: "Black-Scholes Pricer",
 			description:
 				"Price a single option using Black-Scholes model. Returns theoretical price " +
 				"and all greeks (delta, gamma, theta, vega, rho).",
@@ -27,7 +29,7 @@ export function registerOptionsPricingTools(api: OpenClawPluginApi, ctx: PluginC
 				required: ["spot", "strike", "dte", "risk_free_rate", "iv", "option_type"],
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
-				return runPythonEngine("options_pricer", "black_scholes", params, ctx);
+				return jsonResult(await runPythonEngine("options_pricer", "black_scholes", params, ctx));
 			},
 		},
 		{ optional: true },
@@ -37,6 +39,7 @@ export function registerOptionsPricingTools(api: OpenClawPluginApi, ctx: PluginC
 	api.registerTool(
 		{
 			name: "options_payoff_calculator",
+			label: "Options Payoff Calculator",
 			description:
 				"Calculate payoff diagram for a multi-leg options structure at expiration. " +
 				"Supports any combination of calls, puts, and stock positions.",
@@ -67,7 +70,7 @@ export function registerOptionsPricingTools(api: OpenClawPluginApi, ctx: PluginC
 				required: ["legs", "underlying_price"],
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
-				return runPythonEngine("options_pricer", "payoff", params, ctx);
+				return jsonResult(await runPythonEngine("options_pricer", "payoff", params, ctx));
 			},
 		},
 		{ optional: true },
@@ -77,6 +80,7 @@ export function registerOptionsPricingTools(api: OpenClawPluginApi, ctx: PluginC
 	api.registerTool(
 		{
 			name: "greeks_calculator",
+			label: "Greeks Calculator",
 			description:
 				"Calculate portfolio-level aggregated greeks for a set of positions. " +
 				"Returns net delta, gamma, theta, vega per underlying and total.",
@@ -105,7 +109,7 @@ export function registerOptionsPricingTools(api: OpenClawPluginApi, ctx: PluginC
 				required: ["positions"],
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
-				return runPythonEngine("options_pricer", "portfolio_greeks", params, ctx);
+				return jsonResult(await runPythonEngine("options_pricer", "portfolio_greeks", params, ctx));
 			},
 		},
 		{ optional: true },
