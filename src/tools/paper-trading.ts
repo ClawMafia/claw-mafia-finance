@@ -1,8 +1,9 @@
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
 import { jsonResult } from "./result.js";
+import { callPaperBroker } from "../paper-broker-client.js";
 
-export function registerPaperTradingTools(api: OpenClawPluginApi, _ctx: PluginContext) {
+export function registerPaperTradingTools(api: OpenClawPluginApi, ctx: PluginContext) {
 	// ── paper_submit_order ──
 	api.registerTool(
 		{
@@ -25,8 +26,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, _ctx: PluginCo
 				required: ["symbol", "asset_type", "side", "quantity", "order_type", "strategy_id"],
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
-				// TODO Phase 3
-				return jsonResult({ status: "not_implemented", message: "Paper trading is Phase 3." });
+				return jsonResult(await callPaperBroker("submit_order", params, ctx));
 			},
 		},
 		{ optional: true },
@@ -46,8 +46,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, _ctx: PluginCo
 				required: ["order_id"],
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
-				// TODO Phase 3
-				return jsonResult({ status: "not_implemented" });
+				return jsonResult(await callPaperBroker("cancel_order", { order_id: params.order_id }, ctx));
 			},
 		},
 		{ optional: true },
@@ -66,8 +65,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, _ctx: PluginCo
 				},
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
-				// TODO Phase 3
-				return jsonResult({ status: "not_implemented", positions: [] });
+				return jsonResult(await callPaperBroker("get_positions", { strategy_id: params.strategy_id }, ctx));
 			},
 		},
 		{ optional: true },
@@ -87,8 +85,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, _ctx: PluginCo
 				},
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
-				// TODO Phase 3
-				return jsonResult({ status: "not_implemented" });
+				return jsonResult(await callPaperBroker("get_pnl", { strategy_id: params.strategy_id, period: params.period ?? "today" }, ctx));
 			},
 		},
 		{ optional: true },
@@ -110,8 +107,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, _ctx: PluginCo
 				required: ["position_id", "new_expiry"],
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
-				// TODO Phase 3
-				return jsonResult({ status: "not_implemented" });
+				return jsonResult(await callPaperBroker("roll_position", params, ctx));
 			},
 		},
 		{ optional: true },
@@ -132,8 +128,7 @@ export function registerPaperTradingTools(api: OpenClawPluginApi, _ctx: PluginCo
 				},
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
-				// TODO Phase 3
-				return jsonResult({ status: "not_implemented", orders: [] });
+				return jsonResult(await callPaperBroker("get_order_history", params, ctx));
 			},
 		},
 		{ optional: true },
