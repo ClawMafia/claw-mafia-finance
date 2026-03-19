@@ -5,8 +5,10 @@ type Logger = { info: (msg: string) => void; warn: (msg: string) => void };
 // Discord server + channel IDs (from docs/DISCORD-CHANNELS.md)
 const GUILD_ID = "1475048230973865985";
 const PM_DESK_CHANNEL_ID = "1483706704821485599";
-// Output-only channels (agents write here; bot does not respond to inbound messages)
-// const OUTPUT_CHANNEL_IDS = ["1484039126826352670", "1484039222380855376", "1484039315293081662", "1484039403553947700", "1484039576237375520"];
+// Output-only channels — agents write here via the message tool; bot does not handle inbound.
+// IDs are referenced in workspace files (IDENTITY/HEARTBEAT) and cron job targets.
+export const PAPER_TRADING_CHANNEL_ID = "1484045430932242554";
+export const RISK_WATCH_CHANNEL_ID = "1484045395746230292";
 
 // Bot owner Discord user ID
 const OWNER_DISCORD_ID = "1107894529719271474";
@@ -99,20 +101,21 @@ export async function bootstrapOpenClawConfig(
 		(b) => b.agentId === "orchestrator" && (b.match as Record<string, unknown>)?.["peer"] !== undefined &&
 			((b.match as Record<string, unknown>)["peer"] as Record<string, unknown>)?.["id"] === PM_DESK_CHANNEL_ID,
 	);
-	const hasPmDeskChannelConfig = !!((cfg.channels as Record<string, unknown> | undefined)
-		?.["discord"] as Record<string, unknown> | undefined)
-		?.["guilds"] !== undefined &&
-		!!((((cfg.channels as Record<string, unknown>)
-			?.["discord"] as Record<string, unknown>)
-			?.["guilds"] as Record<string, unknown>)
-			?.[GUILD_ID] as Record<string, unknown>)
-			?.["channels"];
+	const discordCfg = (cfg.channels as Record<string, unknown> | undefined)
+		?.["discord"] as Record<string, unknown> | undefined;
+	const hasPmDeskChannelConfig = !!(
+		(discordCfg?.["guilds"] as Record<string, unknown> | undefined)
+			?.[GUILD_ID] as Record<string, unknown> | undefined
+	)?.["channels"];
+	const hasThreadBindings = !!(discordCfg?.["threadBindings"] as Record<string, unknown> | undefined)
+		?.["spawnSubagentSessions"];
 	if (
 		orchestratorEntry &&
 		(orchestratorEntry as Record<string, unknown>)["subagents"] &&
 		existingWorkspace === expectedWorkspace &&
 		hasPmDeskBinding &&
-		hasPmDeskChannelConfig
+		hasPmDeskChannelConfig &&
+		hasThreadBindings
 	) {
 		logger.info("claw-mafia-finance: openclaw.json agent config already present, skipping");
 		return;
@@ -203,6 +206,12 @@ export async function bootstrapOpenClawConfig(
 			...(cfg.channels as Record<string, unknown> ?? {}),
 			discord: {
 				...existingDiscord,
+				// Enable thread-based sub-agent spawning (docs/DISCORD-CHANNELS.md)
+				threadBindings: {
+					...(existingDiscord["threadBindings"] as Record<string, unknown> ?? {}),
+					enabled: true,
+					spawnSubagentSessions: true,
+				},
 				guilds: {
 					...existingGuilds,
 					[GUILD_ID]: guildConfig,
