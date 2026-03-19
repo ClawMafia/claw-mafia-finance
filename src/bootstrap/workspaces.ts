@@ -9,6 +9,12 @@ import * as riskManager from "../workspaces/risk-manager.js";
 import * as paperExecutor from "../workspaces/paper-executor.js";
 import * as reviewer from "../workspaces/reviewer.js";
 
+// Bump this when plugin-owned workspace files change (SOUL/IDENTITY/TOOLS/HEARTBEAT/WORKFLOW/AGENTS).
+// On boot, if the version on disk differs, all plugin-owned files are rewritten.
+// Never touches USER.md or MEMORY.md — those are owned by OpenClaw.
+const WORKSPACE_VERSION = "2";
+const VERSION_FILE = ".plugin-version";
+
 type Logger = { info: (msg: string) => void; warn: (msg: string) => void };
 
 type AgentWorkspace = {
@@ -31,25 +37,37 @@ const AGENT_WORKSPACES: AgentWorkspaceExtended[] = [
 	{ id: "reviewer",          soul: reviewer.SOUL,          identity: reviewer.IDENTITY,          tools: reviewer.TOOLS },
 ];
 
+function writeFile(filePath: string, content: string): void {
+	fs.mkdirSync(path.dirname(filePath), { recursive: true });
+	fs.writeFileSync(filePath, content, "utf8");
+}
+
 function writeIfMissing(filePath: string, content: string): void {
-	if (!fs.existsSync(filePath)) {
-		fs.mkdirSync(path.dirname(filePath), { recursive: true });
-		fs.writeFileSync(filePath, content, "utf8");
-	}
+	if (!fs.existsSync(filePath)) writeFile(filePath, content);
 }
 
 export function bootstrapWorkspaces(workspaceBase: string, logger: Logger): void {
 	for (const agent of AGENT_WORKSPACES) {
 		const dir = path.join(workspaceBase, agent.id);
-		writeIfMissing(path.join(dir, "SOUL.md"),     agent.soul);
-		writeIfMissing(path.join(dir, "IDENTITY.md"), agent.identity);
-		writeIfMissing(path.join(dir, "AGENTS.md"),   SHARED_AGENTS_MD);
-		writeIfMissing(path.join(dir, "TOOLS.md"),    agent.tools);
-		if (agent.heartbeat) {
-			writeIfMissing(path.join(dir, "HEARTBEAT.md"), agent.heartbeat);
-		}
-		if ((agent as AgentWorkspaceExtended).workflow) {
-			writeIfMissing(path.join(dir, "WORKFLOW.md"), (agent as AgentWorkspaceExtended).workflow!);
+		const versionPath = path.join(dir, VERSION_FILE);
+
+		// Check if plugin-owned files need to be (re)written
+		const diskVersion = fs.existsSync(versionPath)
+			? fs.readFileSync(versionPath, "utf8").trim()
+			: null;
+		const needsWrite = diskVersion !== WORKSPACE_VERSION;
+
+		if (needsWrite) {
+			logger.info(`claw-mafia-finance: writing workspace v${WORKSPACE_VERSION} for agent ${agent.id}`);
+			writeFile(path.join(dir, "SOUL.md"),     agent.soul);
+			writeFile(path.join(dir, "IDENTITY.md"), agent.identity);
+			writeFile(path.join(dir, "AGENTS.md"),   SHARED_AGENTS_MD);
+			writeFile(path.join(dir, "TOOLS.md"),    agent.tools);
+			if (agent.heartbeat) writeFile(path.join(dir, "HEARTBEAT.md"), agent.heartbeat);
+			if ((agent as AgentWorkspaceExtended).workflow) {
+				writeFile(path.join(dir, "WORKFLOW.md"), (agent as AgentWorkspaceExtended).workflow!);
+			}
+			writeFile(versionPath, WORKSPACE_VERSION);
 		}
 	}
 	logger.info("claw-mafia-finance: agent workspaces bootstrapped");
