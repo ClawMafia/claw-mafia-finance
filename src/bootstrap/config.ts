@@ -103,18 +103,21 @@ export async function bootstrapOpenClawConfig(
 		...(AGENT_SUBAGENTS[id] ? { subagents: { allowAgents: AGENT_SUBAGENTS[id] } } : {}),
 	}));
 
-	// If agents already exist (missing subagents or workspace), merge updates into existing entries
-	const agentList = existingList.length > 0
-		? existingList.map((existing) => {
-			const fresh = freshAgentList.find((f) => f.id === existing.id);
-			if (!fresh) return existing;
+	// Build merged agent list:
+	// 1. All 7 of our agents (fresh config, merged with any existing fields)
+	// 2. Any pre-existing agents not in our list (e.g. the "main" default agent)
+	const agentList = [
+		...freshAgentList.map((fresh) => {
+			const existing = existingList.find((e) => e.id === fresh.id);
+			if (!existing) return fresh;
 			return {
 				...existing,
 				workspace: fresh.workspace,
 				...(fresh.subagents ? { subagents: fresh.subagents } : {}),
 			};
-		})
-		: freshAgentList;
+		}),
+		...existingList.filter((e) => !freshAgentList.find((f) => f.id === e.id)),
+	];
 
 	// Only add the catch-all binding if this is a fresh bootstrap (no existing agents)
 	const existingBindings = cfg.bindings ?? [];
@@ -128,6 +131,14 @@ export async function bootstrapOpenClawConfig(
 			match: { channel: "discord" },
 		},
 	];
+
+	// Ensure the bot owner can use /reset and other commands in Discord
+	const OWNER_DISCORD_ID = "1107894529719271474";
+	const existingCommandAllowFrom = (cfg.commands?.allowFrom ?? {}) as Record<string, string[]>;
+	const discordAllowFrom = existingCommandAllowFrom["discord"] ?? [];
+	const commandsAllowFrom = discordAllowFrom.includes(OWNER_DISCORD_ID)
+		? existingCommandAllowFrom
+		: { ...existingCommandAllowFrom, discord: [...discordAllowFrom, OWNER_DISCORD_ID] };
 
 	const patch = {
 		...cfg,
@@ -144,6 +155,10 @@ export async function bootstrapOpenClawConfig(
 			list: agentList,
 		},
 		bindings: [...existingBindings, ...newBindings],
+		commands: {
+			...cfg.commands,
+			allowFrom: commandsAllowFrom,
+		},
 	};
 
 	await api.runtime.config.writeConfigFile(patch as Parameters<typeof api.runtime.config.writeConfigFile>[0]);
