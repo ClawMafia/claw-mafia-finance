@@ -2,6 +2,15 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 
 type Logger = { info: (msg: string) => void; warn: (msg: string) => void };
 
+// Discord server + channel IDs (from docs/DISCORD-CHANNELS.md)
+const GUILD_ID = "1475048230973865985";
+const PM_DESK_CHANNEL_ID = "1483706704821485599";
+// Output-only channels (agents write here; bot does not respond to inbound messages)
+// const OUTPUT_CHANNEL_IDS = ["1484039126826352670", "1484039222380855376", "1484039315293081662", "1484039403553947700", "1484039576237375520"];
+
+// Bot owner Discord user ID
+const OWNER_DISCORD_ID = "1107894529719271474";
+
 // Tool allowlists per agent (from docs/AGENTS.md)
 const TOOLS_ALLOW: Record<string, string[]> = {
 	"orchestrator": [
@@ -81,14 +90,29 @@ export async function bootstrapOpenClawConfig(
 	const existingList = cfg.agents?.list ?? [];
 	const orchestratorEntry = existingList.find((a) => a.id === "orchestrator");
 
-	// Guard: skip entirely only if orchestrator is already configured with subagents
-	// AND the workspace path matches the current resolved workspace base
+	// Guard: skip if orchestrator is correctly configured, pm-desk binding exists,
+	// and pm-desk channel config (requireMention) is set
 	const expectedWorkspace = `${workspaceBase}/orchestrator`;
 	const existingWorkspace = (orchestratorEntry as Record<string, unknown> | undefined)?.["workspace"] as string | undefined;
+	const existingBindings = cfg.bindings ?? [];
+	const hasPmDeskBinding = existingBindings.some(
+		(b) => b.agentId === "orchestrator" && (b.match as Record<string, unknown>)?.["peer"] !== undefined &&
+			((b.match as Record<string, unknown>)["peer"] as Record<string, unknown>)?.["id"] === PM_DESK_CHANNEL_ID,
+	);
+	const hasPmDeskChannelConfig = !!((cfg.channels as Record<string, unknown> | undefined)
+		?.["discord"] as Record<string, unknown> | undefined)
+		?.["guilds"] !== undefined &&
+		!!((((cfg.channels as Record<string, unknown>)
+			?.["discord"] as Record<string, unknown>)
+			?.["guilds"] as Record<string, unknown>)
+			?.[GUILD_ID] as Record<string, unknown>)
+			?.["channels"];
 	if (
 		orchestratorEntry &&
 		(orchestratorEntry as Record<string, unknown>)["subagents"] &&
-		existingWorkspace === expectedWorkspace
+		existingWorkspace === expectedWorkspace &&
+		hasPmDeskBinding &&
+		hasPmDeskChannelConfig
 	) {
 		logger.info("claw-mafia-finance: openclaw.json agent config already present, skipping");
 		return;
@@ -119,21 +143,41 @@ export async function bootstrapOpenClawConfig(
 		...existingList.filter((e) => !freshAgentList.find((f) => f.id === e.id)),
 	];
 
-	// Only add the catch-all binding if this is a fresh bootstrap (no existing agents)
-	const existingBindings = cfg.bindings ?? [];
-	const hasCatchAll = existingBindings.some(
-		(b) => b.agentId === "orchestrator" && b.match.channel === "discord",
+	// Replace old catch-all binding with specific #pm-desk peer binding.
+	// Per design (docs/DISCORD-CHANNELS.md): only #pm-desk receives inbound commands;
+	// all other channels are output-only.
+	const bindingsWithoutCatchAll = existingBindings.filter(
+		(b) => !(b.agentId === "orchestrator" &&
+			b.match.channel === "discord" &&
+			!(b.match as Record<string, unknown>)["peer"]),
 	);
-	const newBindings = hasCatchAll ? [] : [
+	const newBindings = hasPmDeskBinding ? [] : [
 		{
 			agentId: "orchestrator",
-			comment: "Route all Discord messages to orchestrator (refine with channel IDs in CLA-9)",
-			match: { channel: "discord" },
+			comment: "Route #pm-desk inbound messages to orchestrator",
+			match: { channel: "discord", peer: { kind: "channel", id: PM_DESK_CHANNEL_ID } },
 		},
 	];
 
-	// Ensure the bot owner can use /reset and other commands in Discord
-	const OWNER_DISCORD_ID = "1107894529719271474";
+	// Per-channel Discord config for #pm-desk: requireMention + autoThread
+	const existingDiscord = (cfg.channels as Record<string, unknown> | undefined)?.["discord"] as Record<string, unknown> ?? {};
+	const existingGuilds = existingDiscord["guilds"] as Record<string, unknown> ?? {};
+	const existingGuild = existingGuilds[GUILD_ID] as Record<string, unknown> ?? {};
+	const existingChannels = existingGuild["channels"] as Record<string, unknown> ?? {};
+	const existingPmDesk = existingChannels[PM_DESK_CHANNEL_ID] as Record<string, unknown> ?? {};
+	const guildConfig = {
+		...existingGuild,
+		channels: {
+			...existingChannels,
+			[PM_DESK_CHANNEL_ID]: {
+				...existingPmDesk,
+				allow: true,
+				requireMention: true,
+				autoThread: true,
+			},
+		},
+	};
+
 	const existingCommandAllowFrom = (cfg.commands?.allowFrom ?? {}) as Record<string, string[]>;
 	const discordAllowFrom = existingCommandAllowFrom["discord"] ?? [];
 	const commandsAllowFrom = discordAllowFrom.includes(OWNER_DISCORD_ID)
@@ -154,7 +198,17 @@ export async function bootstrapOpenClawConfig(
 			},
 			list: agentList,
 		},
-		bindings: [...existingBindings, ...newBindings],
+		bindings: [...bindingsWithoutCatchAll, ...newBindings],
+		channels: {
+			...(cfg.channels as Record<string, unknown> ?? {}),
+			discord: {
+				...existingDiscord,
+				guilds: {
+					...existingGuilds,
+					[GUILD_ID]: guildConfig,
+				},
+			},
+		},
 		commands: {
 			...cfg.commands,
 			allowFrom: commandsAllowFrom,
