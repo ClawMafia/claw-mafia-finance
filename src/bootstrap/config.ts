@@ -22,17 +22,20 @@ const TOOLS_ALLOW: Record<string, string[]> = {
 	"market-data": [
 		"get_stock_quote", "get_options_chain", "get_historical_ohlcv",
 		"get_iv_surface", "get_earnings_calendar", "get_economic_calendar",
-		"get_risk_free_rate", "get_dividend_history", "web_fetch", "message",
+		"get_risk_free_rate", "get_dividend_history", "web_fetch",
+		// no `message` — response is posted to thread by OpenClaw automatically
 	],
 	"strategy-research": [
 		"get_stock_quote", "get_options_chain", "get_iv_surface",
 		"options_payoff_calculator", "black_scholes_pricer", "greeks_calculator",
 		"strategy_template_lookup", "strategy_spec_validator",
-		"web_search", "web_fetch", "message",
+		"web_search", "web_fetch",
+		// no `message` — response is posted to thread by OpenClaw automatically
 	],
 	"backtester": [
 		"run_backtest", "get_backtest_status", "get_backtest_results",
-		"parameter_sweep", "compare_backtests", "get_historical_ohlcv", "message",
+		"parameter_sweep", "compare_backtests", "get_historical_ohlcv",
+		// no `message` — response is posted to thread by OpenClaw automatically
 	],
 	"risk-manager": [
 		"calculate_portfolio_var", "check_position_limits", "stress_test_scenario",
