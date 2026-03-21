@@ -17,7 +17,7 @@ const OWNER_DISCORD_ID = "1107894529719271474";
 const TOOLS_ALLOW: Record<string, string[]> = {
 	"orchestrator": [
 		"sessions_spawn", "sessions_send", "sessions_list", "agents_list",
-		"message", "cron", "strategy_registry_read", "web_search",
+		"message", "cron", "web_search",
 	],
 	"market-data": [
 		"get_stock_quote", "get_options_chain", "get_historical_ohlcv",
@@ -26,7 +26,7 @@ const TOOLS_ALLOW: Record<string, string[]> = {
 		// no `message` — response is posted to thread by OpenClaw automatically
 	],
 	"strategy-research": [
-		"get_stock_quote", "get_options_chain", "get_iv_surface",
+		"get_stock_quote", "get_options_chain", "get_iv_surface", "get_risk_free_rate",
 		"options_payoff_calculator", "black_scholes_pricer", "greeks_calculator",
 		"strategy_template_lookup", "strategy_spec_validator",
 		"web_search", "web_fetch",
@@ -39,7 +39,8 @@ const TOOLS_ALLOW: Record<string, string[]> = {
 	],
 	"risk-manager": [
 		"calculate_portfolio_var", "check_position_limits", "stress_test_scenario",
-		"correlation_matrix", "exposure_report", "get_backtest_results",
+		"correlation_matrix", "exposure_report",
+		"get_historical_ohlcv", "get_backtest_status", "get_backtest_results",
 		"paper_get_positions", "paper_get_pnl",
 		"get_risk_config", "set_risk_config", "trigger_kill_switch", "message",
 	],
@@ -51,7 +52,7 @@ const TOOLS_ALLOW: Record<string, string[]> = {
 	"reviewer": [
 		"generate_daily_report", "compare_thesis_vs_actual",
 		"write_journal_entry", "get_journal_entries",
-		"get_backtest_results", "paper_get_pnl", "paper_get_order_history", "message",
+		"get_backtest_results", "paper_get_positions", "paper_get_pnl", "paper_get_order_history", "message",
 	],
 };
 
