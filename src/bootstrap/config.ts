@@ -45,8 +45,8 @@ const TOOLS_ALLOW: Record<string, string[]> = {
 	],
 	"paper-executor": [
 		"paper_submit_order", "paper_cancel_order", "paper_get_positions",
-		"paper_get_pnl", "paper_roll_position", "paper_get_order_history",
-		"get_stock_quote", "get_options_chain", "message",
+		"paper_get_pnl", "paper_get_order_history",
+		"get_stock_quote", "message",
 	],
 	"reviewer": [
 		"generate_daily_report", "compare_thesis_vs_actual",
@@ -143,6 +143,8 @@ export async function bootstrapOpenClawConfig(
 			return {
 				...existing,
 				workspace: fresh.workspace,
+				tools: fresh.tools,
+				...(fresh.heartbeat ? { heartbeat: fresh.heartbeat } : {}),
 				...(fresh.subagents ? { subagents: fresh.subagents } : {}),
 			};
 		}),
