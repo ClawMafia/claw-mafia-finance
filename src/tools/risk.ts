@@ -1,11 +1,44 @@
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
 import { jsonResult } from "./result.js";
-import { callPaperBroker } from "../paper-broker-client.js";
+import { AlpacaClient } from "../data/alpaca-client.js";
 import { loadRiskConfig, saveRiskConfig, triggerKillSwitch, clearKillSwitch, DEFAULT_RISK_LIMITS } from "../risk-config.js";
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+
+// Normalize Alpaca position format to the internal format used by risk calculations.
+// Alpaca: qty (string), avg_entry_price (string), asset_class ("us_equity")
+// Internal: quantity (number), avg_price (number), asset_type ("stock"|"option")
+type NormalizedPosition = {
+	symbol: string;
+	quantity: number;
+	avg_price: number;
+	market_value: number;
+	asset_type: "stock" | "option";
+	strategy_id: string;
+	delta: number;
+	gamma: number;
+	vega: number;
+	theta: number;
+};
+
+function normalizePositions(raw: unknown): NormalizedPosition[] {
+	const list = (raw as { positions?: unknown[] })?.positions ?? (Array.isArray(raw) ? raw : []);
+	return (list as Record<string, unknown>[]).map((p) => ({
+		symbol: (p.symbol as string) ?? "",
+		quantity: parseFloat((p.qty ?? p.quantity ?? "0") as string),
+		avg_price: parseFloat((p.avg_entry_price ?? p.avg_price ?? "0") as string),
+		market_value: parseFloat((p.market_value ?? "0") as string),
+		asset_type: (p.asset_class === "us_equity" || p.asset_type === "stock") ? "stock" : "option",
+		strategy_id: (p.strategy_id as string) ?? "unknown",
+		// Stocks: delta=1, no greeks. Options (not yet supported) would need real greeks.
+		delta: (p.delta as number) ?? ((p.asset_class === "us_equity" || p.asset_type === "stock") ? 1.0 : 0.5),
+		gamma: (p.gamma as number) ?? 0,
+		vega: (p.vega as number) ?? 0,
+		theta: (p.theta as number) ?? 0,
+	}));
+}
 
 const ENGINE_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../engine");
 
@@ -52,6 +85,14 @@ const NAMED_SCENARIOS: Record<string, { equity_pct: number; vol_pct: number; rat
 };
 
 export function registerRiskTools(api: OpenClawPluginApi, ctx: PluginContext) {
+	const alpaca = new AlpacaClient(
+		ctx.config.alpacaApiKey,
+		ctx.config.alpacaApiSecret,
+		ctx.logger,
+		ctx.dataDir,
+		ctx.config.alpacaBaseUrl,
+	);
+
 	// ── calculate_portfolio_var ──
 	api.registerTool(
 		{
@@ -69,8 +110,8 @@ export function registerRiskTools(api: OpenClawPluginApi, ctx: PluginContext) {
 				const confidence = (params.confidence as number | undefined) ?? 0.95;
 				const horizonDays = (params.horizon_days as number | undefined) ?? 1;
 
-				const posResult = await callPaperBroker("get_positions", {}, ctx) as Record<string, unknown>;
-				const positions = (posResult.positions as Array<Record<string, unknown>> | undefined) ?? [];
+				const posResult = await alpaca.getPositions();
+				const positions = normalizePositions(posResult);
 
 				if (positions.length === 0) {
 					return jsonResult({ var_usd: 0, confidence, horizon_days: horizonDays, positions: 0, note: "No open positions." });
@@ -129,10 +170,10 @@ export function registerRiskTools(api: OpenClawPluginApi, ctx: PluginContext) {
 				},
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
-				const posResult = await callPaperBroker("get_positions", { strategy_id: params.strategy_id }, ctx) as Record<string, unknown>;
-				const positions = (posResult.positions as Array<Record<string, unknown>> | undefined) ?? [];
-				const pnlResult = await callPaperBroker("get_pnl", { period: "inception" }, ctx) as Record<string, unknown>;
-				const totalEquity = (pnlResult.equity as number | undefined) ?? 100_000;
+				const posResult = await alpaca.getPositions(params.strategy_id as string | undefined);
+				const positions = normalizePositions(posResult);
+				const pnlResult = await alpaca.getPnL("inception");
+				const totalEquity = (pnlResult as { equity?: number }).equity ?? 100_000;
 
 				const LIMITS = {
 					max_single_position_pct: 0.15,   // 15% of equity
@@ -235,10 +276,10 @@ export function registerRiskTools(api: OpenClawPluginApi, ctx: PluginContext) {
 					return jsonResult({ error: "Provide scenario_name or custom_shocks." });
 				}
 
-				const posResult = await callPaperBroker("get_positions", {}, ctx) as Record<string, unknown>;
-				const positions = (posResult.positions as Array<Record<string, unknown>> | undefined) ?? [];
-				const pnlResult = await callPaperBroker("get_pnl", { period: "inception" }, ctx) as Record<string, unknown>;
-				const totalEquity = (pnlResult.equity as number | undefined) ?? 100_000;
+				const posResult = await alpaca.getPositions();
+				const positions = normalizePositions(posResult);
+				const pnlResult = await alpaca.getPnL("inception");
+				const totalEquity = (pnlResult as { equity?: number }).equity ?? 100_000;
 
 				let totalPnl = 0;
 				const breakdown: Array<Record<string, unknown>> = [];
@@ -356,10 +397,10 @@ export function registerRiskTools(api: OpenClawPluginApi, ctx: PluginContext) {
 				properties: {},
 			},
 			async execute(_toolCallId: string, _params: Record<string, unknown>) {
-				const posResult = await callPaperBroker("get_positions", {}, ctx) as Record<string, unknown>;
-				const positions = (posResult.positions as Array<Record<string, unknown>> | undefined) ?? [];
-				const pnlResult = await callPaperBroker("get_pnl", { period: "inception" }, ctx) as Record<string, unknown>;
-				const totalEquity = (pnlResult.equity as number | undefined) ?? 100_000;
+				const posResult = await alpaca.getPositions();
+				const positions = normalizePositions(posResult);
+				const pnlResult = await alpaca.getPnL("inception");
+				const totalEquity = (pnlResult as { equity?: number }).equity ?? 100_000;
 
 				// Aggregate greeks by underlying
 				const byUnderlying: Record<string, { delta: number; gamma: number; vega: number; theta: number; notional: number }> = {};

@@ -12,7 +12,7 @@ import * as reviewer from "../workspaces/reviewer.js";
 // Bump this when plugin-owned workspace files change (SOUL/IDENTITY/TOOLS/HEARTBEAT/WORKFLOW/AGENTS).
 // On boot, if the version on disk differs, all plugin-owned files are rewritten.
 // Never touches USER.md or MEMORY.md — those are owned by OpenClaw.
-const WORKSPACE_VERSION = "2";
+const WORKSPACE_VERSION = "3";
 const VERSION_FILE = ".plugin-version";
 
 type Logger = { info: (msg: string) => void; warn: (msg: string) => void };

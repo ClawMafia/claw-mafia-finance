@@ -12,7 +12,9 @@ import { bootstrapDiscordChannels } from "./bootstrap/discord-channels.js";
 import { bootstrapCronJobs } from "./bootstrap/cron-jobs.js";
 
 export type FinancePluginConfig = {
-	polygonApiKey: string;
+	alpacaApiKey: string;
+	alpacaApiSecret: string;
+	alpacaBaseUrl?: string;
 	fredApiKey?: string;
 	dataDir?: string;
 	paperAccountCapital?: number;
@@ -21,8 +23,8 @@ export type FinancePluginConfig = {
 export default async function register(api: OpenClawPluginApi) {
 	const config = (api.pluginConfig ?? {}) as FinancePluginConfig;
 
-	if (!config.polygonApiKey) {
-		api.logger.warn("polygonApiKey not set — market data tools will be unavailable");
+	if (!config.alpacaApiKey || !config.alpacaApiSecret) {
+		api.logger.warn("alpacaApiKey / alpacaApiSecret not set — market data and paper trading tools will be unavailable");
 	}
 
 	const dataDir = config.dataDir ?? api.resolvePath("./data");
