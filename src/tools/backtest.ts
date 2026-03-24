@@ -1,43 +1,32 @@
-import { execFile } from "node:child_process";
-import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
-import { getJob, saveJob, updateJob } from "../backtest-jobs.js";
 import { jsonResult } from "./result.js";
 
-const ENGINE_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../engine");
-const VENV_PYTHON = join(ENGINE_DIR, ".venv/bin/python3");
-const RUNNER_SCRIPT = join(ENGINE_DIR, "backtest_runner.py");
+const BACKTEST_ENGINE_URL = process.env.BACKTEST_ENGINE_URL ?? "http://backtest-engine.railway.internal:8765";
+const BACKTEST_SECRET = process.env.BACKTEST_SECRET ?? "";
 
-function runBacktestAsync(input: Record<string, unknown>, inputPath: string, outputPath: string, ctx: PluginContext): void {
-	writeFileSync(inputPath, JSON.stringify(input));
-	execFile(
-		VENV_PYTHON,
-		[RUNNER_SCRIPT, inputPath, outputPath],
-		{ timeout: 300_000, env: { ...process.env } },
-		(error, _stdout, stderr) => {
-			if (error) {
-				ctx.logger.error(`Backtest error (${input.job_id}): ${stderr || error.message}`);
-				updateJob(ctx.dataDir, input.job_id as string, {
-					status: "error",
-					error: `Engine error: ${error.message}`,
-				});
-				return;
-			}
-			try {
-				const result = JSON.parse(readFileSync(outputPath, "utf-8"));
-				updateJob(ctx.dataDir, input.job_id as string, { status: "done", result });
-			} catch (e) {
-				updateJob(ctx.dataDir, input.job_id as string, {
-					status: "error",
-					error: `Failed to parse engine output: ${(e as Error).message}`,
-				});
-			}
-		},
-	);
+function engineHeaders(): Record<string, string> {
+	const headers: Record<string, string> = { "Content-Type": "application/json" };
+	if (BACKTEST_SECRET) {
+		headers["Authorization"] = `Bearer ${BACKTEST_SECRET}`;
+	}
+	return headers;
+}
+
+async function enginePost(path: string, body: unknown): Promise<Response> {
+	return fetch(`${BACKTEST_ENGINE_URL}${path}`, {
+		method: "POST",
+		headers: engineHeaders(),
+		body: JSON.stringify(body),
+	});
+}
+
+async function engineGet(path: string): Promise<Response> {
+	return fetch(`${BACKTEST_ENGINE_URL}${path}`, {
+		method: "GET",
+		headers: engineHeaders(),
+	});
 }
 
 export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext) {
@@ -48,7 +37,7 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 			label: "Run Backtest",
 			description:
 				"Run a historical backtest for a strategy specification. " +
-				"Executes asynchronously via Python engine. Returns a job_id to poll for results.",
+				"Executes asynchronously via NautilusTrader engine. Returns a job_id to poll for results.",
 			parameters: {
 				type: "object",
 				properties: {
@@ -72,46 +61,24 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 					return jsonResult({ error: `Invalid strategy_spec JSON: ${(e as Error).message}` });
 				}
 
-				const jobId = randomUUID();
-				const tmpDir = join(ctx.dataDir, "tmp");
-				mkdirSync(tmpDir, { recursive: true });
-
-				const inputPath = join(tmpDir, `${jobId}.input.json`);
-				const outputPath = join(tmpDir, `${jobId}.output.json`);
-
-				const input = {
-					job_id: jobId,
-					strategy_spec: spec,
-					start_date: params.start_date as string,
-					end_date: params.end_date as string | undefined,
-					data_dir: ctx.dataDir,
-					initial_capital: (params.initial_capital as number | undefined) ?? 100000,
-					cost_model: (params.cost_model as string | undefined) ?? "default",
-				};
-
-				const job = {
-					job_id: jobId,
-					status: "running" as const,
-					strategy_id: (spec.strategy_id as string) ?? "unknown",
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
-				};
-				saveJob(ctx.dataDir, job);
-
-				if (!existsSync(VENV_PYTHON)) {
-					return jsonResult({
-						error: "Python venv not found. Ensure the Docker image is built with 'engine/.venv'.",
+				let resp: Response;
+				try {
+					resp = await enginePost("/backtest", {
+						strategy_spec: spec,
+						start_date: params.start_date,
+						end_date: params.end_date,
+						initial_capital: (params.initial_capital as number | undefined) ?? 100000,
+						cost_model: (params.cost_model as string | undefined) ?? "default",
 					});
+				} catch (e) {
+					return jsonResult({ error: `Failed to reach backtest engine: ${(e as Error).message}` });
 				}
 
-				runBacktestAsync(input, inputPath, outputPath, ctx);
+				if (!resp.ok) {
+					return jsonResult({ error: `Backtest engine error ${resp.status}: ${await resp.text()}` });
+				}
 
-				return jsonResult({
-					job_id: jobId,
-					status: "running",
-					message: "Backtest started. Poll with get_backtest_status(job_id) to check progress.",
-					strategy_id: job.strategy_id,
-				});
+				return jsonResult(await resp.json());
 			},
 		},
 		{ optional: true },
@@ -131,16 +98,27 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 				required: ["job_id"],
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
-				const job = getJob(ctx.dataDir, params.job_id as string);
-				if (!job) {
+				let resp: Response;
+				try {
+					resp = await engineGet(`/backtest/${params.job_id}`);
+				} catch (e) {
+					return jsonResult({ error: `Failed to reach backtest engine: ${(e as Error).message}` });
+				}
+
+				if (resp.status === 404) {
 					return jsonResult({ error: `Job '${params.job_id}' not found.` });
 				}
+				if (!resp.ok) {
+					return jsonResult({ error: `Engine error ${resp.status}: ${await resp.text()}` });
+				}
+
+				const job = await resp.json();
 				return jsonResult({
 					job_id: job.job_id,
 					status: job.status,
 					strategy_id: job.strategy_id,
-					created_at: job.created_at,
-					updated_at: job.updated_at,
+					submitted_at: job.submitted_at,
+					elapsed_sec: job.elapsed_sec,
 					error: job.error,
 				});
 			},
@@ -164,17 +142,25 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 				required: ["job_id"],
 			},
 			async execute(_toolCallId: string, params: Record<string, unknown>) {
-				const job = getJob(ctx.dataDir, params.job_id as string);
-				if (!job) {
+				let resp: Response;
+				try {
+					resp = await engineGet(`/backtest/${params.job_id}`);
+				} catch (e) {
+					return jsonResult({ error: `Failed to reach backtest engine: ${(e as Error).message}` });
+				}
+
+				if (resp.status === 404) {
 					return jsonResult({ error: `Job '${params.job_id}' not found.` });
 				}
-				if (job.status === "running" || job.status === "pending") {
-					return jsonResult({ status: job.status, message: "Backtest still running. Try again shortly." });
+				if (!resp.ok) {
+					return jsonResult({ error: `Engine error ${resp.status}: ${await resp.text()}` });
 				}
-				if (job.status === "error") {
-					return jsonResult({ status: "error", error: job.error });
+
+				const job = await resp.json();
+				if (job.status === "running") {
+					return jsonResult({ status: "running", elapsed_sec: job.elapsed_sec, message: "Backtest still running. Try again shortly." });
 				}
-				return jsonResult(job.result);
+				return jsonResult(job);
 			},
 		},
 		{ optional: true },
@@ -212,11 +198,7 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 					return jsonResult({ error: `Invalid JSON: ${(e as Error).message}` });
 				}
 
-				if (!existsSync(VENV_PYTHON)) {
-					return jsonResult({ error: "Python venv not found." });
-				}
-
-				// Build cartesian product of parameter combinations
+				// Build cartesian product
 				const keys = Object.keys(paramGrid);
 				const values = keys.map(k => paramGrid[k]);
 				let combinations: Array<Record<string, unknown>> = [{}];
@@ -238,43 +220,41 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 
 				const sweepId = randomUUID().slice(0, 8);
 				const jobIds: string[] = [];
-				const tmpDir = join(ctx.dataDir, "tmp");
-				mkdirSync(tmpDir, { recursive: true });
+				const errors: string[] = [];
 
 				for (const combo of combinations) {
-					const jobId = `sweep-${sweepId}-${randomUUID().slice(0, 8)}`;
 					const variantSpec = {
 						...spec,
 						strategy_id: `${spec.strategy_id as string}_${Object.entries(combo).map(([k, v]) => `${k}${v}`).join("_")}`,
 						default_parameters: { ...(spec.default_parameters as object ?? {}), ...combo },
 					};
-					const inputPath = join(tmpDir, `${jobId}.input.json`);
-					const outputPath = join(tmpDir, `${jobId}.output.json`);
-					const input = {
-						job_id: jobId,
-						strategy_spec: variantSpec,
-						start_date: params.start_date as string,
-						end_date: params.end_date as string | undefined,
-						data_dir: ctx.dataDir,
-						initial_capital: (params.initial_capital as number | undefined) ?? 100000,
-						cost_model: "default",
-					};
-					saveJob(ctx.dataDir, {
-						job_id: jobId,
-						status: "running",
-						strategy_id: variantSpec.strategy_id as string,
-						created_at: new Date().toISOString(),
-						updated_at: new Date().toISOString(),
-					});
-					runBacktestAsync(input, inputPath, outputPath, ctx);
-					jobIds.push(jobId);
+
+					try {
+						const resp = await enginePost("/backtest", {
+							strategy_spec: variantSpec,
+							start_date: params.start_date,
+							end_date: params.end_date,
+							initial_capital: (params.initial_capital as number | undefined) ?? 100000,
+							cost_model: "default",
+						});
+						if (resp.ok) {
+							const data = await resp.json();
+							jobIds.push(data.job_id);
+						} else {
+							errors.push(`Failed to submit variant ${variantSpec.strategy_id}: ${resp.status}`);
+						}
+					} catch (e) {
+						errors.push(`Error submitting variant: ${(e as Error).message}`);
+					}
 				}
 
 				return jsonResult({
 					sweep_id: sweepId,
 					combinations: combinations.length,
+					submitted: jobIds.length,
 					job_ids: jobIds,
-					message: `Started ${combinations.length} backtest jobs. Poll with get_backtest_status, then compare_backtests.`,
+					errors: errors.length > 0 ? errors : undefined,
+					message: `Started ${jobIds.length} backtest jobs. Poll with get_backtest_status, then compare_backtests.`,
 				});
 			},
 		},
@@ -303,26 +283,30 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 				const results: Array<Record<string, unknown>> = [];
 
 				for (const jobId of jobIds) {
-					const job = getJob(ctx.dataDir, jobId);
-					if (!job) {
-						results.push({ job_id: jobId, status: "not_found" });
-						continue;
+					try {
+						const resp = await engineGet(`/backtest/${jobId}`);
+						if (resp.status === 404) {
+							results.push({ job_id: jobId, status: "not_found" });
+							continue;
+						}
+						const job = await resp.json();
+						if (job.status === "running") {
+							results.push({ job_id: jobId, status: "running", strategy_id: job.strategy_id });
+							continue;
+						}
+						results.push({
+							job_id: jobId,
+							strategy_id: job.strategy_id,
+							status: job.status,
+							metrics: job.metrics,
+							weaknesses: job.weaknesses,
+						});
+					} catch (e) {
+						results.push({ job_id: jobId, status: "error", error: (e as Error).message });
 					}
-					if (job.status !== "done") {
-						results.push({ job_id: jobId, status: job.status, strategy_id: job.strategy_id });
-						continue;
-					}
-					const r = job.result as Record<string, unknown>;
-					results.push({
-						job_id: jobId,
-						strategy_id: r?.strategy_id ?? job.strategy_id,
-						status: r?.status,
-						metrics: r?.metrics,
-						weaknesses: r?.weaknesses,
-					});
 				}
 
-				// Rank completed results by Sharpe
+				// Rank by Sharpe
 				const done = results.filter(r => r.metrics !== undefined);
 				done.sort((a, b) => {
 					const sa = ((a.metrics as Record<string, number> | undefined)?.sharpe_ratio ?? 0);
@@ -333,7 +317,7 @@ export function registerBacktestTools(api: OpenClawPluginApi, ctx: PluginContext
 				return jsonResult({
 					total: jobIds.length,
 					completed: done.length,
-					pending: results.filter(r => r.status === "running" || r.status === "pending").length,
+					pending: results.filter(r => r.status === "running").length,
 					ranked_results: done,
 					all_results: results,
 				});

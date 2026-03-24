@@ -55,7 +55,7 @@ export const TOOLS = `# TOOLS.md — Backtesting Agent
 ## run_backtest
 Submit a strategy-spec JSON for historical simulation. Returns a job ID.
 \`\`\`
-run_backtest({ spec: <strategy_spec_json>, start_date: "2021-01-01", end_date: "2026-03-17" })
+run_backtest({ strategy_spec: <strategy_spec_json>, start_date: "2021-01-01", end_date: "2026-03-17" })
 \`\`\`
 Use \`get_backtest_status\` to poll until complete, then \`get_backtest_results\` to fetch.
 

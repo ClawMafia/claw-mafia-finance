@@ -7,9 +7,17 @@
     "type": "object",
     "additionalProperties": false,
     "properties": {
-      "polygonApiKey": {
+      "alpacaApiKey": {
         "type": "string",
-        "description": "Polygon.io API key for market data"
+        "description": "Alpaca API key for market data and paper trading"
+      },
+      "alpacaApiSecret": {
+        "type": "string",
+        "description": "Alpaca API secret"
+      },
+      "alpacaBaseUrl": {
+        "type": "string",
+        "description": "Alpaca trading base URL (default: https://paper-api.alpaca.markets)"
       },
       "fredApiKey": {
         "type": "string",
@@ -26,13 +34,21 @@
         "default": 100000
       }
     },
-    "required": ["polygonApiKey"]
+    "required": ["alpacaApiKey", "alpacaApiSecret"]
   },
   "uiHints": {
-    "polygonApiKey": {
-      "label": "Polygon.io API Key",
-      "help": "Get one at https://polygon.io/dashboard/keys",
+    "alpacaApiKey": {
+      "label": "Alpaca API Key",
+      "help": "Get one at https://app.alpaca.markets/paper-trading",
       "sensitive": true
+    },
+    "alpacaApiSecret": {
+      "label": "Alpaca API Secret",
+      "sensitive": true
+    },
+    "alpacaBaseUrl": {
+      "label": "Alpaca Base URL",
+      "help": "Use https://paper-api.alpaca.markets for paper trading (default)"
     },
     "fredApiKey": {
       "label": "FRED API Key",
