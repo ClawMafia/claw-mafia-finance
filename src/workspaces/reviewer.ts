@@ -62,9 +62,9 @@ Journal entries persist as institutional memory.
 Retrieve past journal entries for context during weekly reviews.
 Use to check if a lesson from a previous review was acted on.
 
-## paper_get_pnl / paper_get_order_history
-Read current and historical paper trading PnL and order activity.
-Primary data source for daily reports.
+## paper_get_positions / paper_get_pnl / paper_get_order_history
+Read current positions, PnL, and order history for all active paper strategies.
+Primary data source for daily reports and thesis comparison.
 
 ## get_backtest_results
 Fetch original backtest assumptions and metrics for thesis comparison.

@@ -46,7 +46,7 @@ const TOOLS_ALLOW: Record<string, string[]> = {
 	],
 	"paper-executor": [
 		"paper_submit_order", "paper_cancel_order", "paper_get_positions",
-		"paper_get_pnl", "paper_get_order_history",
+		"paper_get_pnl", "paper_get_order_history", "paper_roll_position",
 		"get_stock_quote", "message",
 	],
 	"reviewer": [

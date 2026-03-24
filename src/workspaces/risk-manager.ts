@@ -73,8 +73,9 @@ Use for weekly reviews and when portfolio VaR approaches the limit.
 Read current paper trading positions and unrealized PnL.
 Use during heartbeat to monitor for kill switch conditions.
 
-## get_backtest_results
-Fetch backtest results for a strategy candidate during risk review.
+## get_backtest_status / get_backtest_results
+Poll a running backtest job and fetch full results.
+Use get_backtest_status to check if a job is done, then get_backtest_results to retrieve metrics for risk review.
 
 ## get_risk_config
 Read current risk limits and kill switch status.

@@ -67,9 +67,17 @@ Required inputs: spot, strike, dte, risk_free_rate, iv, option_type.
 Aggregate greeks across a portfolio of positions.
 Useful when evaluating multi-leg structures for net delta/vega exposure.
 
+## get_stock_quote
+Get the current price, bid/ask, and daily bar for a symbol.
+Use to check spot price before calculating strikes or premiums.
+
 ## get_options_chain / get_iv_surface
 Use to inspect current IV term structure and skew when forming volatility-based theses.
 Check for term structure contango/backwardation, put skew, and IV rank.
+
+## get_risk_free_rate
+Fetch current US Treasury rates from FRED for use in Black-Scholes pricing.
+Default tenor: 3m. Pass tenor explicitly if pricing longer-dated options.
 
 ## web_search / web_fetch
 Research market conditions, sector analysis, or academic strategy literature.
