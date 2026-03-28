@@ -10,9 +10,10 @@ import * as paperExecutor from "../workspaces/paper-executor.js";
 import * as reviewer from "../workspaces/reviewer.js";
 
 // Bump this when plugin-owned workspace files change (SOUL/IDENTITY/TOOLS/HEARTBEAT/WORKFLOW/AGENTS).
-// On boot, if the version on disk differs, all plugin-owned files are rewritten.
+// On first boot (no version file), all plugin-owned files are written.
+// On subsequent boots, files are only seeded if missing — UI edits are preserved.
 // Never touches USER.md or MEMORY.md — those are owned by OpenClaw.
-const WORKSPACE_VERSION = "5";
+const WORKSPACE_VERSION = "6";
 const VERSION_FILE = ".plugin-version";
 
 type Logger = { info: (msg: string) => void; warn: (msg: string) => void };
@@ -51,21 +52,28 @@ export function bootstrapWorkspaces(workspaceBase: string, logger: Logger): void
 		const dir = path.join(workspaceBase, agent.id);
 		const versionPath = path.join(dir, VERSION_FILE);
 
-		// Check if plugin-owned files need to be (re)written
 		const diskVersion = fs.existsSync(versionPath)
 			? fs.readFileSync(versionPath, "utf8").trim()
 			: null;
-		const needsWrite = diskVersion !== WORKSPACE_VERSION;
+		const firstBoot = diskVersion === null;
 
-		if (needsWrite) {
-			logger.info(`claw-mafia-finance: writing workspace v${WORKSPACE_VERSION} for agent ${agent.id}`);
-			writeFile(path.join(dir, "SOUL.md"),     agent.soul);
-			writeFile(path.join(dir, "IDENTITY.md"), agent.identity);
-			writeFile(path.join(dir, "AGENTS.md"),   SHARED_AGENTS_MD);
-			writeFile(path.join(dir, "TOOLS.md"),    agent.tools);
-			if (agent.heartbeat) writeFile(path.join(dir, "HEARTBEAT.md"), agent.heartbeat);
+		// First boot: write all files unconditionally to seed the workspace.
+		// Subsequent boots: only write files that are missing so UI edits are preserved.
+		const write = firstBoot ? writeFile : writeIfMissing;
+
+		if (diskVersion !== WORKSPACE_VERSION) {
+			logger.info(
+				firstBoot
+					? `claw-mafia-finance: seeding workspace v${WORKSPACE_VERSION} for agent ${agent.id}`
+					: `claw-mafia-finance: ensuring workspace files for agent ${agent.id} (v${diskVersion} → v${WORKSPACE_VERSION})`,
+			);
+			write(path.join(dir, "SOUL.md"),     agent.soul);
+			write(path.join(dir, "IDENTITY.md"), agent.identity);
+			write(path.join(dir, "AGENTS.md"),   SHARED_AGENTS_MD);
+			write(path.join(dir, "TOOLS.md"),    agent.tools);
+			if (agent.heartbeat) write(path.join(dir, "HEARTBEAT.md"), agent.heartbeat);
 			if ((agent as AgentWorkspaceExtended).workflow) {
-				writeFile(path.join(dir, "WORKFLOW.md"), (agent as AgentWorkspaceExtended).workflow!);
+				write(path.join(dir, "WORKFLOW.md"), (agent as AgentWorkspaceExtended).workflow!);
 			}
 			writeFile(versionPath, WORKSPACE_VERSION);
 		}

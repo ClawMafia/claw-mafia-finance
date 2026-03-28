@@ -125,7 +125,9 @@ export async function bootstrapOpenClawConfig(
 		return;
 	}
 
-	// Build fresh agent entries (no model override — inherit gateway default)
+	// Build fresh agent entries (no model override — inherit gateway default).
+	// For agents that already exist in config, preserve their tools/heartbeat
+	// so that UI edits (tool toggles, profile changes) survive restarts.
 	const freshAgentList = AGENT_IDS.map((id) => ({
 		id,
 		workspace: `${workspaceBase}/${id}`,
@@ -135,17 +137,19 @@ export async function bootstrapOpenClawConfig(
 	}));
 
 	// Build merged agent list:
-	// 1. All 7 of our agents (fresh config, merged with any existing fields)
+	// 1. All 7 of our agents — seed defaults for new agents, preserve config for existing ones
 	// 2. Any pre-existing agents not in our list (e.g. the "main" default agent)
 	const agentList = [
 		...freshAgentList.map((fresh) => {
 			const existing = existingList.find((e) => e.id === fresh.id);
 			if (!existing) return fresh;
+			// Preserve existing tools/heartbeat config (may have been edited via UI).
+			// Only seed workspace path and subagents (structural, not user-tunable).
 			return {
 				...existing,
 				workspace: fresh.workspace,
-				tools: fresh.tools,
-				...(fresh.heartbeat ? { heartbeat: fresh.heartbeat } : {}),
+				tools: (existing as Record<string, unknown>)["tools"] ?? fresh.tools,
+				heartbeat: (existing as Record<string, unknown>)["heartbeat"] ?? fresh.heartbeat,
 				...(fresh.subagents ? { subagents: fresh.subagents } : {}),
 			};
 		}),
