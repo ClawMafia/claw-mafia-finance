@@ -2,10 +2,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as orchestrator from "../workspaces/orchestrator.js";
 
-// Bump this when plugin-owned workspace files change (SOUL/IDENTITY).
+// Bump this when plugin-owned workspace files change (SOUL/IDENTITY/AGENTS).
 // On first boot (no version file), all plugin-owned files are written.
 // On subsequent boots, files are only seeded if missing — UI edits are preserved.
-const WORKSPACE_VERSION = "7";
+const WORKSPACE_VERSION = "8";
 const VERSION_FILE = ".plugin-version";
 
 type Logger = { info: (msg: string) => void; warn: (msg: string) => void };
@@ -40,6 +40,7 @@ export function bootstrapWorkspaces(workspaceBase: string, logger: Logger): void
 		);
 		write(path.join(dir, "SOUL.md"), orchestrator.SOUL);
 		write(path.join(dir, "IDENTITY.md"), orchestrator.IDENTITY);
+		write(path.join(dir, "AGENTS.md"), orchestrator.AGENTS);
 		writeFile(versionPath, WORKSPACE_VERSION);
 	}
 	logger.info("claw-mafia-finance: orchestrator workspace bootstrapped");

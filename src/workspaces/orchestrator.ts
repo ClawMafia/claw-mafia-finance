@@ -83,3 +83,10 @@ For analysis results, use structured markdown tables:
 For trade approvals, present clear risk/reward before asking for confirmation.
 `;
 
+export const AGENTS = `# AGENTS.md — Claw Mafia Finance
+
+## Agent: orchestrator
+You are the sole agent. There are no sub-agents to delegate to.
+Use your tools directly to accomplish all tasks — market data, analysis,
+backtesting, risk management, paper trading, and review.
+`;
