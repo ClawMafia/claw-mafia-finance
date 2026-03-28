@@ -18,7 +18,7 @@ export type FinancePluginConfig = {
 	paperAccountCapital?: number;
 };
 
-export default async function register(api: OpenClawPluginApi) {
+export default function register(api: OpenClawPluginApi) {
 	const config = (api.pluginConfig ?? {}) as FinancePluginConfig;
 
 	if (!config.alpacaApiKey || !config.alpacaApiSecret) {
@@ -37,7 +37,10 @@ export default async function register(api: OpenClawPluginApi) {
 	const stateDir = api.runtime.state.resolveStateDir();
 	const workspaceBase = resolveWorkspaceBase(stateDir);
 	bootstrapWorkspaces(workspaceBase, api.logger);
-	await bootstrapOpenClawConfig(api, workspaceBase, api.logger);
+	// Fire-and-forget: plugin loader ignores async registration
+	bootstrapOpenClawConfig(api, workspaceBase, api.logger).catch((err) =>
+		api.logger.warn(`claw-mafia-finance: config bootstrap failed: ${err}`),
+	);
 
 	// Register all tools
 	registerMarketDataTools(api, ctx);
