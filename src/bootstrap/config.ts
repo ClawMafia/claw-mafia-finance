@@ -13,8 +13,10 @@ export const RISK_WATCH_CHANNEL_ID = "1484045395746230292";
 // Bot owner Discord user ID
 const OWNER_DISCORD_ID = "1107894529719271474";
 
-// Tool allowlists per agent (from docs/AGENTS.md)
-const TOOLS_ALLOW: Record<string, string[]> = {
+// Per-agent tool config (from docs/AGENTS.md).
+// Uses profile + alsoAllow instead of explicit allow so the UI Tools tab
+// can toggle individual tools without falling back to the Config tab.
+const TOOLS_ALSO_ALLOW: Record<string, string[]> = {
 	"orchestrator": [
 		"sessions_spawn", "sessions_send", "sessions_list", "agents_list",
 		"message", "cron", "web_search",
@@ -23,19 +25,16 @@ const TOOLS_ALLOW: Record<string, string[]> = {
 		"get_stock_quote", "get_options_chain", "get_historical_ohlcv",
 		"get_iv_surface", "get_earnings_calendar", "get_economic_calendar",
 		"get_risk_free_rate", "get_dividend_history", "web_fetch",
-		// no `message` — response is posted to thread by OpenClaw automatically
 	],
 	"strategy-research": [
 		"get_stock_quote", "get_options_chain", "get_iv_surface", "get_risk_free_rate",
 		"options_payoff_calculator", "black_scholes_pricer", "greeks_calculator",
 		"strategy_template_lookup", "strategy_spec_validator",
 		"web_search", "web_fetch",
-		// no `message` — response is posted to thread by OpenClaw automatically
 	],
 	"backtester": [
 		"run_backtest", "get_backtest_status", "get_backtest_results",
 		"parameter_sweep", "compare_backtests", "get_historical_ohlcv",
-		// no `message` — response is posted to thread by OpenClaw automatically
 	],
 	"risk-manager": [
 		"calculate_portfolio_var", "check_position_limits", "stress_test_scenario",
@@ -84,7 +83,7 @@ const AGENT_HEARTBEAT: Record<string, object> = {
 	},
 };
 
-const AGENT_IDS = Object.keys(TOOLS_ALLOW) as Array<keyof typeof TOOLS_ALLOW>;
+const AGENT_IDS = Object.keys(TOOLS_ALSO_ALLOW) as Array<keyof typeof TOOLS_ALSO_ALLOW>;
 
 export async function bootstrapOpenClawConfig(
 	api: OpenClawPluginApi,
@@ -113,13 +112,18 @@ export async function bootstrapOpenClawConfig(
 	)?.["channels"];
 	const hasThreadBindings = !!(discordCfg?.["threadBindings"] as Record<string, unknown> | undefined)
 		?.["spawnSubagentSessions"];
+	// Check if tools config uses the profile-based format (not explicit allow).
+	// If still using the old allow format, re-bootstrap to migrate.
+	const orchestratorTools = (orchestratorEntry as Record<string, unknown> | undefined)?.["tools"] as Record<string, unknown> | undefined;
+	const usesProfileFormat = orchestratorTools?.["profile"] !== undefined || orchestratorTools?.["alsoAllow"] !== undefined;
 	if (
 		orchestratorEntry &&
 		(orchestratorEntry as Record<string, unknown>)["subagents"] &&
 		existingWorkspace === expectedWorkspace &&
 		hasPmDeskBinding &&
 		hasPmDeskChannelConfig &&
-		hasThreadBindings
+		hasThreadBindings &&
+		usesProfileFormat
 	) {
 		logger.info("claw-mafia-finance: openclaw.json agent config already present, skipping");
 		return;
@@ -131,7 +135,7 @@ export async function bootstrapOpenClawConfig(
 	const freshAgentList = AGENT_IDS.map((id) => ({
 		id,
 		workspace: `${workspaceBase}/${id}`,
-		tools: { allow: TOOLS_ALLOW[id] },
+		tools: { profile: "minimal", alsoAllow: TOOLS_ALSO_ALLOW[id] },
 		...(AGENT_HEARTBEAT[id] ? { heartbeat: AGENT_HEARTBEAT[id] } : {}),
 		...(AGENT_SUBAGENTS[id] ? { subagents: { allowAgents: AGENT_SUBAGENTS[id] } } : {}),
 	}));
@@ -145,10 +149,14 @@ export async function bootstrapOpenClawConfig(
 			if (!existing) return fresh;
 			// Preserve existing tools/heartbeat config (may have been edited via UI).
 			// Only seed workspace path and subagents (structural, not user-tunable).
+			// Migrate: replace old explicit-allow format with profile-based format
+			// so the UI Tools tab can toggle individual tools.
+			const existingTools = (existing as Record<string, unknown>)["tools"] as Record<string, unknown> | undefined;
+			const isOldAllowFormat = existingTools?.["allow"] && !existingTools?.["profile"];
 			return {
 				...existing,
 				workspace: fresh.workspace,
-				tools: (existing as Record<string, unknown>)["tools"] ?? fresh.tools,
+				tools: isOldAllowFormat ? fresh.tools : (existingTools ?? fresh.tools),
 				heartbeat: (existing as Record<string, unknown>)["heartbeat"] ?? fresh.heartbeat,
 				...(fresh.subagents ? { subagents: fresh.subagents } : {}),
 			};
