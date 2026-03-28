@@ -2,88 +2,40 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 
 type Logger = { info: (msg: string) => void; warn: (msg: string) => void };
 
-// Discord server + channel IDs (from docs/DISCORD-CHANNELS.md)
+// Discord server + channel IDs
 const GUILD_ID = "1475048230973865985";
 const PM_DESK_CHANNEL_ID = "1483706704821485599";
-// Output-only channels — agents write here via the message tool; bot does not handle inbound.
-// IDs are referenced in workspace files (IDENTITY/HEARTBEAT) and cron job targets.
-export const PAPER_TRADING_CHANNEL_ID = "1484045430932242554";
-export const RISK_WATCH_CHANNEL_ID = "1484045395746230292";
 
 // Bot owner Discord user ID
 const OWNER_DISCORD_ID = "1107894529719271474";
 
-// Per-agent tool config (from docs/AGENTS.md).
-// Uses profile + alsoAllow instead of explicit allow so the UI Tools tab
-// can toggle individual tools without falling back to the Config tab.
-const TOOLS_ALSO_ALLOW: Record<string, string[]> = {
-	"orchestrator": [
-		"sessions_spawn", "sessions_send", "sessions_list", "agents_list",
-		"message", "cron", "web_search",
-	],
-	"market-data": [
-		"get_stock_quote", "get_options_chain", "get_historical_ohlcv",
-		"get_iv_surface", "get_earnings_calendar", "get_economic_calendar",
-		"get_risk_free_rate", "get_dividend_history", "web_fetch",
-	],
-	"strategy-research": [
-		"get_stock_quote", "get_options_chain", "get_iv_surface", "get_risk_free_rate",
-		"options_payoff_calculator", "black_scholes_pricer", "greeks_calculator",
-		"strategy_template_lookup", "strategy_spec_validator",
-		"web_search", "web_fetch",
-	],
-	"backtester": [
-		"run_backtest", "get_backtest_status", "get_backtest_results",
-		"parameter_sweep", "compare_backtests", "get_historical_ohlcv",
-	],
-	"risk-manager": [
-		"calculate_portfolio_var", "check_position_limits", "stress_test_scenario",
-		"correlation_matrix", "exposure_report",
-		"get_historical_ohlcv", "get_backtest_status", "get_backtest_results",
-		"paper_get_positions", "paper_get_pnl",
-		"get_risk_config", "set_risk_config", "trigger_kill_switch", "message",
-	],
-	"paper-executor": [
-		"paper_submit_order", "paper_cancel_order", "paper_get_positions",
-		"paper_get_pnl", "paper_get_order_history", "paper_roll_position",
-		"get_stock_quote", "message",
-	],
-	"reviewer": [
-		"generate_daily_report", "compare_thesis_vs_actual",
-		"write_journal_entry", "get_journal_entries",
-		"get_backtest_results", "paper_get_positions", "paper_get_pnl", "paper_get_order_history", "message",
-	],
-};
-
-// Subagents each agent is allowed to spawn via sessions_spawn
-const AGENT_SUBAGENTS: Record<string, string[]> = {
-	"orchestrator": ["market-data", "strategy-research", "backtester", "risk-manager", "paper-executor", "reviewer"],
-	"risk-manager": ["backtester"],
-};
-
-// Per-agent heartbeat overrides (agents with HEARTBEAT.md content)
-const AGENT_HEARTBEAT: Record<string, object> = {
-	"orchestrator": {
-		every: "30m",
-		activeHours: { start: "08:00", end: "18:00", timezone: "America/New_York" },
-		lightContext: true,
-		isolatedSession: true,
-	},
-	"risk-manager": {
-		every: "15m",
-		activeHours: { start: "09:30", end: "16:00", timezone: "America/New_York" },
-		lightContext: true,
-		isolatedSession: true,
-	},
-	"paper-executor": {
-		every: "30m",
-		activeHours: { start: "09:30", end: "16:30", timezone: "America/New_York" },
-		lightContext: true,
-		isolatedSession: true,
-	},
-};
-
-const AGENT_IDS = Object.keys(TOOLS_ALSO_ALLOW) as Array<keyof typeof TOOLS_ALSO_ALLOW>;
+// All finance tools available to the orchestrator agent.
+// Uses profile + alsoAllow so the UI Tools tab can toggle individual tools.
+const ORCHESTRATOR_TOOLS_ALSO_ALLOW = [
+	// Market data
+	"get_stock_quote", "get_options_chain", "get_historical_ohlcv",
+	"get_iv_surface", "get_earnings_calendar", "get_economic_calendar",
+	"get_risk_free_rate", "get_dividend_history",
+	// Options pricing
+	"options_payoff_calculator", "black_scholes_pricer", "greeks_calculator",
+	// Strategy
+	"strategy_template_lookup", "strategy_spec_validator",
+	// Backtest
+	"run_backtest", "get_backtest_status", "get_backtest_results",
+	"parameter_sweep", "compare_backtests",
+	// Risk
+	"calculate_portfolio_var", "check_position_limits", "stress_test_scenario",
+	"correlation_matrix", "exposure_report",
+	"get_risk_config", "set_risk_config", "trigger_kill_switch",
+	// Paper trading
+	"paper_submit_order", "paper_cancel_order", "paper_get_positions",
+	"paper_get_pnl", "paper_get_order_history", "paper_roll_position",
+	// Review
+	"generate_daily_report", "compare_thesis_vs_actual",
+	"write_journal_entry", "get_journal_entries",
+	// Discord + web
+	"message", "web_search", "web_fetch",
+];
 
 export async function bootstrapOpenClawConfig(
 	api: OpenClawPluginApi,
@@ -95,8 +47,6 @@ export async function bootstrapOpenClawConfig(
 	const existingList = cfg.agents?.list ?? [];
 	const orchestratorEntry = existingList.find((a) => a.id === "orchestrator");
 
-	// Guard: skip if orchestrator is correctly configured, pm-desk binding exists,
-	// and pm-desk channel config (requireMention) is set
 	const expectedWorkspace = `${workspaceBase}/orchestrator`;
 	const existingWorkspace = (orchestratorEntry as Record<string, unknown> | undefined)?.["workspace"] as string | undefined;
 	const existingBindings = cfg.bindings ?? [];
@@ -110,64 +60,47 @@ export async function bootstrapOpenClawConfig(
 		(discordCfg?.["guilds"] as Record<string, unknown> | undefined)
 			?.[GUILD_ID] as Record<string, unknown> | undefined
 	)?.["channels"];
-	const hasThreadBindings = !!(discordCfg?.["threadBindings"] as Record<string, unknown> | undefined)
-		?.["spawnSubagentSessions"];
-	// Check if tools config uses the profile-based format (not explicit allow).
-	// If still using the old allow format, re-bootstrap to migrate.
 	const orchestratorTools = (orchestratorEntry as Record<string, unknown> | undefined)?.["tools"] as Record<string, unknown> | undefined;
 	const usesProfileFormat = orchestratorTools?.["profile"] !== undefined || orchestratorTools?.["alsoAllow"] !== undefined;
+
 	if (
 		orchestratorEntry &&
-		(orchestratorEntry as Record<string, unknown>)["subagents"] &&
 		existingWorkspace === expectedWorkspace &&
 		hasPmDeskBinding &&
 		hasPmDeskChannelConfig &&
-		hasThreadBindings &&
 		usesProfileFormat
 	) {
 		logger.info("claw-mafia-finance: openclaw.json agent config already present, skipping");
 		return;
 	}
 
-	// Build fresh agent entries (no model override — inherit gateway default).
-	// For agents that already exist in config, preserve their tools/heartbeat
-	// so that UI edits (tool toggles, profile changes) survive restarts.
-	const freshAgentList = AGENT_IDS.map((id) => ({
-		id,
-		workspace: `${workspaceBase}/${id}`,
-		tools: { profile: "minimal", alsoAllow: TOOLS_ALSO_ALLOW[id] },
-		...(AGENT_HEARTBEAT[id] ? { heartbeat: AGENT_HEARTBEAT[id] } : {}),
-		...(AGENT_SUBAGENTS[id] ? { subagents: { allowAgents: AGENT_SUBAGENTS[id] } } : {}),
-	}));
+	// Build orchestrator agent entry
+	const freshOrchestrator = {
+		id: "orchestrator",
+		workspace: `${workspaceBase}/orchestrator`,
+		tools: { profile: "minimal", alsoAllow: ORCHESTRATOR_TOOLS_ALSO_ALLOW },
+	};
 
-	// Build merged agent list:
-	// 1. All 7 of our agents — seed defaults for new agents, preserve config for existing ones
-	// 2. Any pre-existing agents not in our list (e.g. the "main" default agent)
+	// Merge with existing config if present (preserve UI edits)
+	const orchestratorAgent = (() => {
+		if (!orchestratorEntry) return freshOrchestrator;
+		const existingTools = (orchestratorEntry as Record<string, unknown>)["tools"] as Record<string, unknown> | undefined;
+		const isOldAllowFormat = existingTools?.["allow"] && !existingTools?.["profile"];
+		return {
+			...orchestratorEntry,
+			workspace: freshOrchestrator.workspace,
+			tools: isOldAllowFormat ? freshOrchestrator.tools : (existingTools ?? freshOrchestrator.tools),
+		};
+	})();
+
+	// Build agent list: our orchestrator + any pre-existing agents we don't own
 	const agentList = [
-		...freshAgentList.map((fresh) => {
-			const existing = existingList.find((e) => e.id === fresh.id);
-			if (!existing) return fresh;
-			// Preserve existing tools/heartbeat config (may have been edited via UI).
-			// Only seed workspace path and subagents (structural, not user-tunable).
-			// Migrate: replace old explicit-allow format with profile-based format
-			// so the UI Tools tab can toggle individual tools.
-			const existingTools = (existing as Record<string, unknown>)["tools"] as Record<string, unknown> | undefined;
-			const isOldAllowFormat = existingTools?.["allow"] && !existingTools?.["profile"];
-			return {
-				...existing,
-				workspace: fresh.workspace,
-				tools: isOldAllowFormat ? fresh.tools : (existingTools ?? fresh.tools),
-				heartbeat: (existing as Record<string, unknown>)["heartbeat"] ?? fresh.heartbeat,
-				...(fresh.subagents ? { subagents: fresh.subagents } : {}),
-			};
-		}),
-		...existingList.filter((e) => !freshAgentList.find((f) => f.id === e.id)),
+		orchestratorAgent,
+		...existingList.filter((e) => e.id !== "orchestrator"),
 	];
 
-	// Replace old catch-all binding with specific #pm-desk peer binding.
-	// Per design (docs/DISCORD-CHANNELS.md): only #pm-desk receives inbound commands;
-	// all other channels are output-only.
-	const bindingsWithoutCatchAll = existingBindings.filter(
+	// #pm-desk peer binding
+	const bindingsWithoutOldCatchAll = existingBindings.filter(
 		(b) => !(b.agentId === "orchestrator" &&
 			b.match.channel === "discord" &&
 			!(b.match as Record<string, unknown>)["peer"]),
@@ -209,27 +142,13 @@ export async function bootstrapOpenClawConfig(
 		...cfg,
 		agents: {
 			...cfg.agents,
-			defaults: {
-				...cfg.agents?.defaults,
-				heartbeat: {
-					...cfg.agents?.defaults?.heartbeat,
-					lightContext: true,
-					isolatedSession: true,
-				},
-			},
 			list: agentList,
 		},
-		bindings: [...bindingsWithoutCatchAll, ...newBindings],
+		bindings: [...bindingsWithoutOldCatchAll, ...newBindings],
 		channels: {
 			...(cfg.channels as Record<string, unknown> ?? {}),
 			discord: {
 				...existingDiscord,
-				// Enable thread-based sub-agent spawning (docs/DISCORD-CHANNELS.md)
-				threadBindings: {
-					...(existingDiscord["threadBindings"] as Record<string, unknown> ?? {}),
-					enabled: true,
-					spawnSubagentSessions: true,
-				},
 				guilds: {
 					...existingGuilds,
 					[GUILD_ID]: guildConfig,

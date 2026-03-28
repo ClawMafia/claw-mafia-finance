@@ -8,8 +8,6 @@ import { registerPaperTradingTools } from "./tools/paper-trading.js";
 import { registerReviewTools } from "./tools/review.js";
 import { bootstrapWorkspaces, resolveWorkspaceBase } from "./bootstrap/workspaces.js";
 import { bootstrapOpenClawConfig } from "./bootstrap/config.js";
-import { bootstrapDiscordChannels } from "./bootstrap/discord-channels.js";
-import { bootstrapCronJobs } from "./bootstrap/cron-jobs.js";
 
 export type FinancePluginConfig = {
 	alpacaApiKey: string;
@@ -35,35 +33,20 @@ export default async function register(api: OpenClawPluginApi) {
 		logger: api.logger,
 	};
 
-	// Bootstrap: write agent workspace files and openclaw.json config on first boot
+	// Bootstrap: write orchestrator workspace files and openclaw.json config
 	const stateDir = api.runtime.state.resolveStateDir();
 	const workspaceBase = resolveWorkspaceBase(stateDir);
 	bootstrapWorkspaces(workspaceBase, api.logger);
 	await bootstrapOpenClawConfig(api, workspaceBase, api.logger);
 
-	// Phase 1: Market data + options pricing
+	// Register all tools
 	registerMarketDataTools(api, ctx);
 	registerOptionsPricingTools(api, ctx);
-
-	// Phase 2: Strategy + backtest
 	registerStrategyTools(api, ctx);
 	registerBacktestTools(api, ctx);
-
-	// Phase 3: Risk + paper trading
 	registerRiskTools(api, ctx);
 	registerPaperTradingTools(api, ctx);
-
-	// Phase 4: Review
 	registerReviewTools(api, ctx);
-
-	// Bootstrap cron jobs (runs once at startup before Discord connects)
-	bootstrapCronJobs(api.logger);
-
-	// Bootstrap Discord channels on gateway start (after bot is connected)
-	const capturedStateDir = stateDir;
-	api.on("gateway_start", async () => {
-		await bootstrapDiscordChannels(api, capturedStateDir, api.logger);
-	});
 
 	api.logger.info("claw-mafia-finance plugin loaded");
 }
