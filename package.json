@@ -1,5 +1,5 @@
 {
-  "name": "@claw-mafia/finance",
+  "name": "@claw-mafia/claw-mafia-finance",
   "version": "0.1.0",
   "private": true,
   "description": "Structured equity research, backtesting, and paper trading plugin for OpenClaw",
