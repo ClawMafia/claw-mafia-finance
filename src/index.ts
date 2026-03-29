@@ -22,7 +22,7 @@ export default function register(api: OpenClawPluginApi) {
 	const config = (api.pluginConfig ?? {}) as FinancePluginConfig;
 
 	if (!config.alpacaApiKey || !config.alpacaApiSecret) {
-		api.logger.warn("alpacaApiKey / alpacaApiSecret not set — market data and paper trading tools will be unavailable");
+		api.logger.warn("alpacaApiKey / alpacaApiSecret not set — US real-time quotes will fall back to yfinance; paper trading will be unavailable");
 	}
 
 	const dataDir = config.dataDir ?? api.resolvePath("./data");
