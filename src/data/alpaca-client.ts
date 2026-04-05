@@ -316,7 +316,7 @@ export class AlpacaClient {
 
 		const [account, history] = await Promise.all([
 			this.fetchTrading("/account"),
-			this.fetchTrading(`/portfolio/history?period=${alpacaPeriod}&extended_hours=false`),
+			this.fetchTrading(`/account/portfolio/history?period=${alpacaPeriod}&extended_hours=false`),
 		]);
 
 		const acc = account as { equity: string; last_equity: string; cash: string };
