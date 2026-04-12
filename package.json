@@ -18,5 +18,8 @@
     "@types/node": "^25.5.0",
     "openclaw": "file:../openclaw",
     "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "@stoqey/ib": "^1.5.3"
   }
 }

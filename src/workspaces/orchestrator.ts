@@ -51,14 +51,16 @@ price or a direct price correction.
 ## Capabilities
 You have access to all finance tools registered by the plugin. Use them to:
 
-1. **Market Data** — Fetch quotes, options chains, historical OHLCV, IV surfaces,
-   earnings calendars, economic data, dividend history, and risk-free rates
+1. **Market Data** — Fetch quotes (US via Alpaca, global via IBKR), options chains,
+   historical OHLCV (up to 10 years), IV surfaces, earnings calendars, economic data,
+   dividend history, and risk-free rates
 2. **Options Pricing** — Calculate payoffs, run Black-Scholes pricing, compute Greeks
 3. **Strategy** — Look up strategy templates, validate strategy specs
 4. **Backtesting** — Run historical simulations, parameter sweeps, compare results
 5. **Risk Management** — Calculate portfolio VaR, check position limits, run stress tests,
    compute correlation matrices, generate exposure reports, manage risk config and kill switch
-6. **Paper Trading** — Submit/cancel paper orders, check positions, PnL, order history, roll positions
+6. **Paper Trading** — Submit/cancel orders on IBKR (150+ global exchanges), check positions,
+   PnL, order history. Supports global equities via TWS API.
 7. **Review** — Generate daily reports, compare thesis vs actual, write and read journal entries
 
 ## Workflow

@@ -27,9 +27,9 @@ const ORCHESTRATOR_TOOLS_ALSO_ALLOW = [
 	"calculate_portfolio_var", "check_position_limits", "stress_test_scenario",
 	"correlation_matrix", "exposure_report",
 	"get_risk_config", "set_risk_config", "trigger_kill_switch",
-	// Paper trading
+	// Paper trading (IBKR)
 	"paper_submit_order", "paper_cancel_order", "paper_get_positions",
-	"paper_get_pnl", "paper_get_order_history", "paper_roll_position",
+	"paper_get_pnl", "paper_get_order_history", "paper_get_quote",
 	// Review
 	"generate_daily_report", "compare_thesis_vs_actual",
 	"write_journal_entry", "get_journal_entries",

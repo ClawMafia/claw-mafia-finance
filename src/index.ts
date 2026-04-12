@@ -13,6 +13,8 @@ export type FinancePluginConfig = {
 	alpacaApiKey: string;
 	alpacaApiSecret: string;
 	alpacaBaseUrl?: string;
+	ibkrHost?: string;
+	ibkrPort?: number;
 	fredApiKey?: string;
 	dataDir?: string;
 	paperAccountCapital?: number;
@@ -22,7 +24,11 @@ export default function register(api: OpenClawPluginApi) {
 	const config = (api.pluginConfig ?? {}) as FinancePluginConfig;
 
 	if (!config.alpacaApiKey || !config.alpacaApiSecret) {
-		api.logger.warn("alpacaApiKey / alpacaApiSecret not set — US real-time quotes will fall back to yfinance; paper trading will be unavailable");
+		api.logger.warn("alpacaApiKey / alpacaApiSecret not set — US real-time quotes will fall back to yfinance");
+	}
+
+	if (!config.ibkrHost) {
+		api.logger.warn("ibkrHost not set — IBKR tools will target localhost:4000");
 	}
 
 	const dataDir = config.dataDir ?? api.resolvePath("./data");
@@ -50,6 +56,8 @@ export default function register(api: OpenClawPluginApi) {
 	registerRiskTools(api, ctx);
 	registerPaperTradingTools(api, ctx);
 	registerReviewTools(api, ctx);
+
+	// Background services — keepalive not needed with IB Gateway (session managed by IBC)
 
 	api.logger.info("claw-mafia-finance plugin loaded");
 }

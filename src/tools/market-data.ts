@@ -1,6 +1,7 @@
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { PluginContext } from "../types.js";
 import { AlpacaClient } from "../data/alpaca-client.js";
+import { IBKRClient } from "../data/ibkr-client.js";
 import { YFinanceClient } from "../data/yfinance-client.js";
 import { MarketDataRouter } from "../data/symbol-router.js";
 import { FredClient } from "../data/fred-client.js";
@@ -16,8 +17,13 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 				ctx.config.alpacaBaseUrl,
 			)
 		: null;
+	const ibkr = new IBKRClient(
+		ctx.config.ibkrHost ?? "localhost",
+		ctx.config.ibkrPort ?? 4000,
+		ctx.logger,
+	);
 	const yfinance = new YFinanceClient(ctx);
-	const router = new MarketDataRouter(alpaca, yfinance);
+	const router = new MarketDataRouter(alpaca, ibkr, yfinance, ctx.logger);
 	const fred = ctx.config.fredApiKey ? new FredClient(ctx.config.fredApiKey, ctx.logger) : null;
 
 	// ── get_stock_quote ──
@@ -27,7 +33,7 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			label: "Get Stock Quote",
 			description:
 				"Get current stock quote including price, bid/ask, volume, and daily bar. " +
-				"Supports US equities (via Alpaca IEX) and international markets via yfinance " +
+				"Supports US equities (via Alpaca IEX) and international markets via IBKR/yfinance " +
 				"(HK, London, Euronext, Tokyo, etc.).",
 			parameters: {
 				type: "object",
@@ -86,8 +92,8 @@ export function registerMarketDataTools(api: OpenClawPluginApi, ctx: PluginConte
 			label: "Get Historical OHLCV",
 			description:
 				"Fetch historical OHLCV bars for a symbol. " +
-				"US equities use Alpaca IEX (with local caching); international symbols use yfinance. " +
-				"Supports daily, hourly, 5-minute, weekly, and monthly intervals.",
+				"US equities use Alpaca IEX (with local caching); international symbols use IBKR or yfinance. " +
+				"Supports daily, hourly, 5-minute, weekly, and monthly intervals. Up to 10 years of history.",
 			parameters: {
 				type: "object",
 				properties: {

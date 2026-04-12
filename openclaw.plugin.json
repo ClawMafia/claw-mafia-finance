@@ -3,6 +3,7 @@
   "name": "Claw Mafia Finance",
   "description": "Structured equity research, backtesting, and paper trading tools for options-based strategies.",
   "version": "0.1.0",
+  "skills": ["./skills"],
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -18,6 +19,14 @@
       "alpacaBaseUrl": {
         "type": "string",
         "description": "Alpaca trading base URL (default: https://paper-api.alpaca.markets)"
+      },
+      "ibkrHost": {
+        "type": "string",
+        "description": "IBKR IB Gateway host (default: localhost)"
+      },
+      "ibkrPort": {
+        "type": "number",
+        "description": "IBKR IB Gateway TWS API port (default: 4000)"
       },
       "fredApiKey": {
         "type": "string",
@@ -49,6 +58,14 @@
     "alpacaBaseUrl": {
       "label": "Alpaca Base URL",
       "help": "Use https://paper-api.alpaca.markets for paper trading (default)"
+    },
+    "ibkrHost": {
+      "label": "IBKR Gateway Host",
+      "help": "Hostname of the IB Gateway (default: localhost)"
+    },
+    "ibkrPort": {
+      "label": "IBKR Gateway Port",
+      "help": "TWS API port of the IB Gateway (default: 4000)"
     },
     "fredApiKey": {
       "label": "FRED API Key",

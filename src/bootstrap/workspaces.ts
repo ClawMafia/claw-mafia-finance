@@ -5,7 +5,7 @@ import * as orchestrator from "../workspaces/orchestrator.js";
 // Bump this when plugin-owned workspace files change (SOUL/IDENTITY/AGENTS).
 // On first boot (no version file), all plugin-owned files are written.
 // On subsequent boots, files are only seeded if missing — UI edits are preserved.
-const WORKSPACE_VERSION = "8";
+const WORKSPACE_VERSION = "9";
 const VERSION_FILE = ".plugin-version";
 
 type Logger = { info: (msg: string) => void; warn: (msg: string) => void };
@@ -28,11 +28,12 @@ export function bootstrapWorkspaces(workspaceBase: string, logger: Logger): void
 		: null;
 	const firstBoot = diskVersion === null;
 
-	// First boot: write all files unconditionally to seed the workspace.
-	// Subsequent boots: only write files that are missing so UI edits are preserved.
-	const write = firstBoot ? writeFile : writeIfMissing;
+	// First boot or version bump: write all files unconditionally.
+	// Same version: only write files that are missing so UI edits are preserved.
+	const versionChanged = diskVersion !== WORKSPACE_VERSION;
+	const write = (firstBoot || versionChanged) ? writeFile : writeIfMissing;
 
-	if (diskVersion !== WORKSPACE_VERSION) {
+	if (versionChanged) {
 		logger.info(
 			firstBoot
 				? `claw-mafia-finance: seeding workspace v${WORKSPACE_VERSION} for orchestrator`
