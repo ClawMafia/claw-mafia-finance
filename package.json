@@ -6,11 +6,13 @@
   "type": "module",
   "openclaw": {
     "extensions": [
-      "./src/index.ts"
+      "./dist/index.js"
     ]
   },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts",
     "setup-python": "python3 -m venv engine/.venv && engine/.venv/bin/pip install -r engine/requirements.txt"
   },
   "devDependencies": {
@@ -20,6 +22,8 @@
     "typescript": "^5.9.0"
   },
   "dependencies": {
-    "@stoqey/ib": "^1.5.3"
+    "@stoqey/ib": "^1.5.3",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.11.1"
   }
 }

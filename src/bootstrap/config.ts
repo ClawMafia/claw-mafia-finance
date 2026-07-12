@@ -4,13 +4,13 @@ type Logger = { info: (msg: string) => void; warn: (msg: string) => void };
 
 // Discord server + channel IDs
 const GUILD_ID = "1475048230973865985";
-const PM_DESK_CHANNEL_ID = "1483706704821485599";
+const PAPER_TRADING_CHANNEL_ID = "1503954201414340729";
 
 // Bot owner Discord user ID
 const OWNER_DISCORD_ID = "1107894529719271474";
 
-// All finance tools available to the orchestrator agent.
-// Uses profile + alsoAllow so the UI Tools tab can toggle individual tools.
+// Preserved for future use — orchestrator agent tool list is no longer wired
+// into openclaw.json (paper-trading agent below is the active agent now).
 const ORCHESTRATOR_TOOLS_ALSO_ALLOW = [
 	// Market data
 	"get_stock_quote", "get_options_chain", "get_historical_ohlcv",
@@ -28,14 +28,36 @@ const ORCHESTRATOR_TOOLS_ALSO_ALLOW = [
 	"correlation_matrix", "exposure_report",
 	"get_risk_config", "set_risk_config", "trigger_kill_switch",
 	// Paper trading (IBKR)
-	"paper_submit_order", "paper_cancel_order", "paper_get_positions",
-	"paper_get_pnl", "paper_get_order_history", "paper_get_quote",
-	// Review
+	"ibkr_submit_order", "ibkr_cancel_order", "ibkr_get_positions",
+	"ibkr_get_pnl", "ibkr_get_order_history", "ibkr_get_quote",
+	// Review / trading journals
 	"generate_daily_report", "compare_thesis_vs_actual",
-	"write_journal_entry", "get_journal_entries",
+	"ibkr_record_fills", "attach_reasoning", "ibkr_get_positions_book", "ibkr_refresh_marks",
 	// Discord + web
 	"message", "web_search", "web_fetch",
 ];
+void ORCHESTRATOR_TOOLS_ALSO_ALLOW;
+
+// Active agent: paper-trading. Tools narrowed to paper execution + EODHD market
+// data + Discord/web. To re-enable the broader orchestrator, swap the agent
+// entry below and use ORCHESTRATOR_TOOLS_ALSO_ALLOW.
+const PAPER_TRADING_TOOLS_ALSO_ALLOW = [
+	// Paper trading (IBKR)
+	"ibkr_submit_order", "ibkr_cancel_order", "ibkr_get_positions",
+	"ibkr_get_pnl", "ibkr_get_order_history", "ibkr_get_quote",
+	"ibkr_reconnect",
+	// Trading journals (ledger)
+	"ibkr_record_fills", "attach_reasoning", "ibkr_get_positions_book", "ibkr_refresh_marks",
+	// EODHD market data
+	"eodhd_search_symbols", "eodhd_get_fundamentals", "eodhd_get_historical_eod",
+	// Discord + web
+	"message", "web_search", "web_fetch",
+	// Shell access for the ibkr-api-direct skill. Used for IBKR operations
+	// the typed ibkr_* tools don't cover (futures, combos, contract lookups).
+	"bash",
+];
+
+const PAPER_TRADING_AGENT_ID = "paper-trading";
 
 export async function bootstrapOpenClawConfig(
 	api: OpenClawPluginApi,
@@ -45,14 +67,16 @@ export async function bootstrapOpenClawConfig(
 	const cfg = api.runtime.config.loadConfig();
 
 	const existingList = cfg.agents?.list ?? [];
-	const orchestratorEntry = existingList.find((a) => a.id === "orchestrator");
+	const paperEntry = existingList.find((a) => a.id === PAPER_TRADING_AGENT_ID);
 
+	// Reuse the orchestrator workspace (SOUL/IDENTITY/AGENTS prompts seeded by
+	// bootstrapWorkspaces). New agent ID, same prompts.
 	const expectedWorkspace = `${workspaceBase}/orchestrator`;
-	const existingWorkspace = (orchestratorEntry as Record<string, unknown> | undefined)?.["workspace"] as string | undefined;
+	const existingWorkspace = (paperEntry as Record<string, unknown> | undefined)?.["workspace"] as string | undefined;
 	const existingBindings = cfg.bindings ?? [];
 	const hasPmDeskBinding = existingBindings.some(
-		(b) => b.agentId === "orchestrator" && (b.match as Record<string, unknown>)?.["peer"] !== undefined &&
-			((b.match as Record<string, unknown>)["peer"] as Record<string, unknown>)?.["id"] === PM_DESK_CHANNEL_ID,
+		(b) => b.agentId === PAPER_TRADING_AGENT_ID && (b.match as Record<string, unknown>)?.["peer"] !== undefined &&
+			((b.match as Record<string, unknown>)["peer"] as Record<string, unknown>)?.["id"] === PAPER_TRADING_CHANNEL_ID,
 	);
 	const discordCfg = (cfg.channels as Record<string, unknown> | undefined)
 		?.["discord"] as Record<string, unknown> | undefined;
@@ -60,11 +84,11 @@ export async function bootstrapOpenClawConfig(
 		(discordCfg?.["guilds"] as Record<string, unknown> | undefined)
 			?.[GUILD_ID] as Record<string, unknown> | undefined
 	)?.["channels"];
-	const orchestratorTools = (orchestratorEntry as Record<string, unknown> | undefined)?.["tools"] as Record<string, unknown> | undefined;
-	const usesProfileFormat = orchestratorTools?.["profile"] !== undefined || orchestratorTools?.["alsoAllow"] !== undefined;
+	const paperTools = (paperEntry as Record<string, unknown> | undefined)?.["tools"] as Record<string, unknown> | undefined;
+	const usesProfileFormat = paperTools?.["profile"] !== undefined || paperTools?.["alsoAllow"] !== undefined;
 
 	if (
-		orchestratorEntry &&
+		paperEntry &&
 		existingWorkspace === expectedWorkspace &&
 		hasPmDeskBinding &&
 		hasPmDeskChannelConfig &&
@@ -74,58 +98,65 @@ export async function bootstrapOpenClawConfig(
 		return;
 	}
 
-	// Build orchestrator agent entry
-	const freshOrchestrator = {
-		id: "orchestrator",
-		workspace: `${workspaceBase}/orchestrator`,
-		tools: { profile: "minimal", alsoAllow: ORCHESTRATOR_TOOLS_ALSO_ALLOW },
+	// Build paper-trading agent entry
+	const freshPaperTrading = {
+		id: PAPER_TRADING_AGENT_ID,
+		workspace: expectedWorkspace,
+		tools: { profile: "minimal", alsoAllow: PAPER_TRADING_TOOLS_ALSO_ALLOW },
 	};
 
-	// Merge with existing config if present (preserve UI edits)
-	const orchestratorAgent = (() => {
-		if (!orchestratorEntry) return freshOrchestrator;
-		const existingTools = (orchestratorEntry as Record<string, unknown>)["tools"] as Record<string, unknown> | undefined;
+	// Merge with existing config if present (preserve UI edits to the tool list)
+	const paperTradingAgent = (() => {
+		if (!paperEntry) return freshPaperTrading;
+		const existingTools = (paperEntry as Record<string, unknown>)["tools"] as Record<string, unknown> | undefined;
 		const isOldAllowFormat = existingTools?.["allow"] && !existingTools?.["profile"];
 		return {
-			...orchestratorEntry,
-			workspace: freshOrchestrator.workspace,
-			tools: isOldAllowFormat ? freshOrchestrator.tools : (existingTools ?? freshOrchestrator.tools),
+			...paperEntry,
+			workspace: freshPaperTrading.workspace,
+			tools: isOldAllowFormat ? freshPaperTrading.tools : (existingTools ?? freshPaperTrading.tools),
 		};
 	})();
 
-	// Build agent list: our orchestrator + any pre-existing agents we don't own
+	// Build agent list: our paper-trading agent + any pre-existing agents we
+	// don't own. (Any old "orchestrator" entry from prior installs is preserved
+	// as-is but no longer receives bindings.)
 	const agentList = [
-		orchestratorAgent,
-		...existingList.filter((e) => e.id !== "orchestrator"),
+		paperTradingAgent,
+		...existingList.filter((e) => e.id !== PAPER_TRADING_AGENT_ID),
 	];
 
-	// #pm-desk peer binding
-	const bindingsWithoutOldCatchAll = existingBindings.filter(
-		(b) => !(b.agentId === "orchestrator" &&
+	// #paper-trading peer binding — drop any prior orchestrator catch-all or
+	// orchestrator-targeted paper-trading binding so the new agent is the sole route.
+	const bindingsToRemove = (b: typeof existingBindings[number]) => {
+		const isOrchestratorCatchAll = b.agentId === "orchestrator" &&
 			b.match.channel === "discord" &&
-			!(b.match as Record<string, unknown>)["peer"]),
-	);
+			!(b.match as Record<string, unknown>)["peer"];
+		const isOrchestratorPmDesk = b.agentId === "orchestrator" &&
+			((b.match as Record<string, unknown>)?.["peer"] as Record<string, unknown> | undefined)?.["id"] === PAPER_TRADING_CHANNEL_ID;
+		return isOrchestratorCatchAll || isOrchestratorPmDesk;
+	};
+	const bindingsWithoutOldRoutes = existingBindings.filter((b) => !bindingsToRemove(b));
 	const newBindings = hasPmDeskBinding ? [] : [
 		{
-			agentId: "orchestrator",
-			comment: "Route #pm-desk inbound messages to orchestrator",
-			match: { channel: "discord", peer: { kind: "channel", id: PM_DESK_CHANNEL_ID } },
+			agentId: PAPER_TRADING_AGENT_ID,
+			comment: "Route #paper-trading inbound messages to paper-trading agent",
+			match: { channel: "discord", peer: { kind: "channel", id: PAPER_TRADING_CHANNEL_ID } },
 		},
 	];
 
-	// Per-channel Discord config for #pm-desk: requireMention + autoThread
+	// Per-channel Discord config for #paper-trading: requireMention + autoThread
 	const existingDiscord = (cfg.channels as Record<string, unknown> | undefined)?.["discord"] as Record<string, unknown> ?? {};
 	const existingGuilds = existingDiscord["guilds"] as Record<string, unknown> ?? {};
 	const existingGuild = existingGuilds[GUILD_ID] as Record<string, unknown> ?? {};
 	const existingChannels = existingGuild["channels"] as Record<string, unknown> ?? {};
-	const existingPmDesk = existingChannels[PM_DESK_CHANNEL_ID] as Record<string, unknown> ?? {};
+	const existingPaperTrading = existingChannels[PAPER_TRADING_CHANNEL_ID] as Record<string, unknown> ?? {};
 	const guildConfig = {
 		...existingGuild,
 		channels: {
 			...existingChannels,
-			[PM_DESK_CHANNEL_ID]: {
-				...existingPmDesk,
-				allow: true,
+			[PAPER_TRADING_CHANNEL_ID]: {
+				...existingPaperTrading,
+				enabled: true,
 				requireMention: true,
 				autoThread: true,
 			},
@@ -144,7 +175,7 @@ export async function bootstrapOpenClawConfig(
 			...cfg.agents,
 			list: agentList,
 		},
-		bindings: [...bindingsWithoutOldCatchAll, ...newBindings],
+		bindings: [...bindingsWithoutOldRoutes, ...newBindings],
 		channels: {
 			...(cfg.channels as Record<string, unknown> ?? {}),
 			discord: {

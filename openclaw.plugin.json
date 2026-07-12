@@ -4,6 +4,49 @@
   "description": "Structured equity research, backtesting, and paper trading tools for options-based strategies.",
   "version": "0.1.0",
   "skills": ["./skills"],
+  "contracts": {
+    "tools": [
+      "black_scholes_pricer",
+      "calculate_portfolio_var",
+      "check_position_limits",
+      "attach_reasoning",
+      "compare_backtests",
+      "compare_thesis_vs_actual",
+      "correlation_matrix",
+      "exposure_report",
+      "generate_daily_report",
+      "get_backtest_results",
+      "get_backtest_status",
+      "get_dividend_history",
+      "get_earnings_calendar",
+      "get_economic_calendar",
+      "get_historical_ohlcv",
+      "get_iv_surface",
+      "get_options_chain",
+      "get_risk_config",
+      "get_risk_free_rate",
+      "get_stock_quote",
+      "greeks_calculator",
+      "options_payoff_calculator",
+      "ibkr_cancel_order",
+      "ibkr_get_order_history",
+      "ibkr_get_pnl",
+      "ibkr_get_positions",
+      "ibkr_get_positions_book",
+      "ibkr_get_quote",
+      "ibkr_reconnect",
+      "ibkr_record_fills",
+      "ibkr_refresh_marks",
+      "ibkr_submit_order",
+      "parameter_sweep",
+      "run_backtest",
+      "set_risk_config",
+      "strategy_spec_validator",
+      "strategy_template_lookup",
+      "stress_test_scenario",
+      "trigger_kill_switch"
+    ]
+  },
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -28,6 +71,14 @@
         "type": "number",
         "description": "IBKR IB Gateway TWS API port (default: 4000)"
       },
+      "ibkrFlexToken": {
+        "type": "string",
+        "description": "IBKR Flex Web Service token (from IBKR_FLEX_TOKEN) for fetching paper-trade/position Flex reports"
+      },
+      "ibkrFlexQueryId": {
+        "type": "string",
+        "description": "Default IBKR Flex query id (from IBKR_FLEX_QUERY_ID) used when no query_id is passed"
+      },
       "fredApiKey": {
         "type": "string",
         "description": "FRED API key for economic data"
@@ -36,6 +87,10 @@
         "type": "string",
         "description": "Directory for cached market data",
         "default": "./data"
+      },
+      "ledgerDbPath": {
+        "type": "string",
+        "description": "Trading-journal ledger SQLite path. Default: {stateDir}/finance/ledger.sqlite"
       },
       "paperAccountCapital": {
         "type": "number",
@@ -67,6 +122,15 @@
       "label": "IBKR Gateway Port",
       "help": "TWS API port of the IB Gateway (default: 4000)"
     },
+    "ibkrFlexToken": {
+      "label": "IBKR Flex Token",
+      "help": "IBKR Flex Web Service token; enables paper-trade and position report fetches",
+      "sensitive": true
+    },
+    "ibkrFlexQueryId": {
+      "label": "IBKR Flex Query ID",
+      "help": "Default Flex query id to run when none is supplied"
+    },
     "fredApiKey": {
       "label": "FRED API Key",
       "help": "Get one at https://fred.stlouisfed.org/docs/api/api_key.html",
@@ -75,6 +139,10 @@
     "dataDir": {
       "label": "Data Directory",
       "help": "Local path for caching market data files"
+    },
+    "ledgerDbPath": {
+      "label": "Ledger DB Path",
+      "help": "SQLite file for the trading-journal ledger (defaults to the plugin state dir)"
     },
     "paperAccountCapital": {
       "label": "Paper Account Capital",

@@ -5,7 +5,7 @@ import * as orchestrator from "../workspaces/orchestrator.js";
 // Bump this when plugin-owned workspace files change (SOUL/IDENTITY/AGENTS).
 // On first boot (no version file), all plugin-owned files are written.
 // On subsequent boots, files are only seeded if missing — UI edits are preserved.
-const WORKSPACE_VERSION = "9";
+const WORKSPACE_VERSION = "10";
 const VERSION_FILE = ".plugin-version";
 
 type Logger = { info: (msg: string) => void; warn: (msg: string) => void };

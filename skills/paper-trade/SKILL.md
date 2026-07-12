@@ -13,20 +13,20 @@ Use this skill when submitting, managing, or reviewing paper trades.
 ## Order Workflow
 
 1. **Pre-trade checks**:
-   - Verify the symbol exists: use `paper_get_quote` to confirm IBKR can resolve it
-   - Check current positions: use `paper_get_positions` to avoid unintended doubling
+   - Verify the symbol exists: use `ibkr_get_quote` to confirm IBKR can resolve it
+   - Check current positions: use `ibkr_get_positions` to avoid unintended doubling
    - Check risk limits: use `get_risk_config` and `check_position_limits`
 
 2. **Submit the order**:
-   - Use `paper_submit_order` with a `strategy_id` to tag the trade
+   - Use `ibkr_submit_order` with a `strategy_id` to tag the trade
    - Always confirm with the user before executing — present symbol, side, quantity, order type, and estimated notional
    - Market orders (`order_type: "market"`) fill immediately during market hours
    - Limit orders (`order_type: "limit"`) require a `limit_price`
 
 3. **Post-trade verification**:
-   - Use `paper_get_order_history` to confirm fill status
-   - Use `paper_get_positions` to verify the position appeared
-   - Use `paper_get_pnl` to check account-level impact
+   - Use `ibkr_get_order_history` to confirm fill status
+   - Use `ibkr_get_positions` to verify the position appeared
+   - Use `ibkr_get_pnl` to check account-level impact
 
 ## IBKR Market Hours
 
