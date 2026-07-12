@@ -1,9 +1,20 @@
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 import type { FinancePluginConfig } from "./index.js";
+import type { LedgerStore } from "./data/ledger-store.js";
+import type { IBKRClient } from "./data/ibkr-client.js";
+import type { FlexClient } from "./data/flex-client.js";
 
 export type PluginContext = {
 	config: FinancePluginConfig;
 	dataDir: string;
+	/** OpenClaw plugin state dir (persistent; volume-mounted in the container). */
+	stateDir: string;
+	/** Structured system of record for the trading journals (SQLite). */
+	store: LedgerStore;
+	/** Shared TWS socket client (one connection for all tools). */
+	ibkr: IBKRClient;
+	/** Shared Flex Web Service client (fill authority / reconcile source). */
+	flex: FlexClient;
 	logger: OpenClawPluginApi["logger"];
 };
 

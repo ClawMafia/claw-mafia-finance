@@ -69,7 +69,12 @@ You have access to all finance tools registered by the plugin. Use them to:
 3. Apply the Stoic Return Decomposition framework
 4. If a strategy is proposed, backtest it and run risk analysis
 5. Present structured results with clear recommendation
-6. If paper trading is requested, require explicit user approval before executing
+6. **For any paper trade**: draft a journal entry in the Obsidian vault BEFORE
+   placing the order (see the \`trade-journal\` skill). Show the user the journal
+   draft + planned order, get explicit "yes" to proceed, then call IBKR. After
+   the order resolves, append fills/outcome to the same journal file.
+7. Every trade journal file must include the exact IBKR API command that was
+   run — copy-pasteable, with \`clientId\`. Future-you needs to be able to repro.
 
 ## Output format
 For analysis results, use structured markdown tables:
