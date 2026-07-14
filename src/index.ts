@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
+import type { PluginContext } from "./types.js";
 import { LedgerStore } from "./data/ledger-store.js";
 import { IBKRClient } from "./data/ibkr-client.js";
 import { FlexClient } from "./data/flex-client.js";
@@ -71,7 +72,20 @@ export default function register(api: OpenClawPluginApi) {
 		api.logger.warn(`claw-mafia-finance: config bootstrap failed: ${err}`),
 	);
 
-	// Register all tools
+	registerAllTools(api, ctx);
+
+	// Background services — keepalive not needed with IB Gateway (session managed by IBC)
+
+	api.logger.info("claw-mafia-finance plugin loaded");
+}
+
+/**
+ * Register every finance tool against `api`. Shared by the OpenClaw plugin
+ * entrypoint (above) and the standalone MCP server (mcp-server.ts) — the only
+ * `api` method the tools use is `registerTool`, so any surface that implements
+ * it can host the full tool set.
+ */
+export function registerAllTools(api: OpenClawPluginApi, ctx: PluginContext): void {
 	registerMarketDataTools(api, ctx);
 	registerOptionsPricingTools(api, ctx);
 	registerStrategyTools(api, ctx);
@@ -79,8 +93,4 @@ export default function register(api: OpenClawPluginApi) {
 	registerRiskTools(api, ctx);
 	registerIbkrTradingTools(api, ctx);
 	registerReviewTools(api, ctx);
-
-	// Background services — keepalive not needed with IB Gateway (session managed by IBC)
-
-	api.logger.info("claw-mafia-finance plugin loaded");
 }
